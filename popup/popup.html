@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JunoverseAI Domain Search</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>JunoverseAI Domain Search</h1>
+    </header>
+
+    <div class="instructions">
+      <p>1. Open <a href="#" id="openSiteBtn">instantdomainsearch.com</a></p>
+      <p>2. Keep the tab open and click Start.</p>
+    </div>
+
+    <div class="input-group">
+      <label for="apiKey">Gemini API Key</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="password" id="apiKey" placeholder="Enter API Key">
+        <button id="clearApiBtn" class="btn secondary" style="flex-shrink: 0; padding: 8px; width: auto;" title="Clear API Key">X</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="keywords">Base Keywords</label>
+      <input type="text" id="keywords" placeholder="e.g. AI tool, developer, platform">
+    </div>
+
+    <div class="input-group">
+      <label for="promptInstructions">Prompt Instructions</label>
+      <textarea id="promptInstructions" rows="3" placeholder="e.g. Make it sound sleek and futuristic. Output ONLY a comma-separated list of domains without .com"></textarea>
+    </div>
+
+    <div class="input-group">
+      <label>Optional Suffixes (Click to toggle)</label>
+      <div class="pill-group" id="suffixGroup">
+        <button class="pill" data-value="Agency">Agency</button>
+        <button class="pill" data-value="HQ">HQ</button>
+        <button class="pill" data-value="App">App</button>
+        <button class="pill" data-value="Co">Co</button>
+        <button class="pill" data-value="Hub">Hub</button>
+        <button class="pill" data-value="AI">AI</button>
+      </div>
+    </div>
+
+    <div class="input-group row-group">
+      <div class="half-group">
+        <label for="batchSize">Batch Size</label>
+        <input type="number" id="batchSize" value="30" min="5" max="100" title="How many domains the AI generates per request.">
+      </div>
+      <div class="half-group">
+        <label for="targetCount">Target Domains</label>
+        <input type="number" id="targetCount" value="5" min="1" max="50">
+      </div>
+    </div>
+
+    <!-- Manual Domain Check -->
+    <details id="manualSection">
+      <summary class="manual-toggle">📋 Manual Domain Check <span class="manual-hint">(no API key needed)</span></summary>
+      <div class="manual-body">
+        <label for="manualDomains">Paste domains, one per line (without .com):</label>
+        <textarea id="manualDomains" rows="5" placeholder="shinenest&#10;glowforge&#10;neonpulse&#10;swiftleaf"></textarea>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button id="checkManualBtn" class="btn primary" style="flex: 1;">Check Domains</button>
+          <button id="stopManualBtn" class="btn danger" style="flex: 1; display: none;">Stop</button>
+        </div>
+      </div>
+    </details>
+
+    <div style="display: flex; justify-content: space-between; gap: 8px;">
+      <button id="resetSettingsBtn" class="btn secondary">Reset Settings</button>
+      <button id="startBtn" class="btn primary">Start Hunting</button>
+      <button id="stopBtn" class="btn danger" style="display: none;">Stop</button>
+    </div>
+
+    <div class="status-panel">
+      <div class="status-header">
+        <span>Status: <span id="statusText">Idle</span></span>
+        <span>Found: <span id="foundCount">0</span>/<span id="targetDisplay">5</span></span>
+      </div>
+      <div id="resultsList" class="results-list"></div>
+    </div>
+    
+    <div class="results-panel">
+      <div class="results-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <h3 style="margin: 0;">Live Activity Log</h3>
+        <div style="display: flex; gap: 6px;">
+          <select id="logFilter" class="log-filter">
+            <option value="all">Logs: All</option>
+            <option value="available">Available</option>
+            <option value="premium">Premium</option>
+            <option value="taken">Taken</option>
+          </select>
+          <button id="downloadLogBtn" class="btn secondary sm" title="Download JunoverseAI Domain Report">Download</button>
+        </div>
+      </div>
+      <div id="checkLogList" class="results-list log-list"></div>
+    </div>
+    <!-- Branded Footer -->
+    <div class="brand-footer">
+      <div class="brand-profile">
+        <img src="sayed-johon.jpg" alt="Sayed Johon" class="brand-avatar">
+        <div class="brand-info">
+          <span class="brand-name">Sayed Johon</span>
+          <span class="brand-role">Developed by</span>
+        </div>
+      </div>
+      <div class="brand-links">
+        <a href="https://youtube.com/@junoverseai" target="_blank" class="brand-link yt-link" title="JunoverseAI on YouTube">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          @JunoverseAI
+        </a>
+        <a href="https://peeai.com" target="_blank" class="brand-link course-link" title="AI Courses at PeeAI">
+          🎓 peeai.com
+        </a>
+      </div>
+    </div>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
