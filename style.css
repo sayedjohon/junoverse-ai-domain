@@ -988,10 +988,11 @@ textarea { resize: vertical; }
    MOBILE
    ============================================ */
 @media (max-width: 600px) {
-  .header-inner { padding: 12px 16px; }
+  .header-inner { padding: 12px 16px; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .header-actions { justify-content: center; }
   .logo-sub { display: none; }
   .user-email { display: none; }
-  .user-quota-badge { font-size: 12px; padding: 3px 10px; }
+  .user-quota-badge { font-size: 12px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
 
   .hero { padding: 48px 16px 40px; }
   .hero-headline { font-size: 32px; }

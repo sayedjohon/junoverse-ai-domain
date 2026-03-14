@@ -307,6 +307,8 @@ async function startAiHunt() {
   if (!currentSession) incrementGuestAi();
 
   setRunning('ai');
+  document.getElementById('statusContainer').scrollIntoView({ behavior: 'smooth' });
+  
   foundDomains   = [];
   checkedDomains = [];
   sessionLogs    = [];
@@ -503,7 +505,7 @@ async function handleSignIn() {
   const btn = $('signinBtn'), msg = $('signinMsg');
   msg.className = 'form-msg hidden';
   btn.disabled = true; btn.textContent = 'Signing in...';
-  try { await signIn($('signinEmail').value.trim(), $('signinPassword').value); closeModal(); }
+  try { await signIn($('signinEmail').value.trim(), $('signinPassword').value); closeModal(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   catch (err) { msg.textContent = err.message; msg.className = 'form-msg error'; }
   finally { btn.disabled = false; btn.textContent = 'Sign In'; }
 }
@@ -514,7 +516,7 @@ async function handleSignUp() {
   btn.disabled = true; btn.textContent = 'Creating account...';
   try {
     const { session } = await signUp($('signupEmail').value.trim(), $('signupPassword').value);
-    if (session) closeModal();
+    if (session) { closeModal(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     else { msg.textContent = '✅ Check your email to confirm your account, then sign in.'; msg.className = 'form-msg success'; }
   } catch (err) { msg.textContent = err.message; msg.className = 'form-msg error'; }
   finally { btn.disabled = false; btn.textContent = 'Create Free Account'; }
@@ -540,6 +542,9 @@ function toggleTheme() {
 // ============================================
 function bindEvents() {
   $('themeToggleBtn').addEventListener('click', toggleTheme);
+  
+  const headerBrand = document.querySelector('.header-brand');
+  if (headerBrand) headerBrand.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
   // Tabs
   document.querySelectorAll('.segment').forEach(btn => {
