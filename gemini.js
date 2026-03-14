@@ -18,6 +18,7 @@ export async function generateDomains(params, session) {
   });
 
   if (error) throw new Error(error.message || 'Edge function error');
+  if (data?.error) throw new Error(data.error);
   if (!data || !data.domains) throw new Error('No domains returned from server');
 
   return data.domains; // array of strings

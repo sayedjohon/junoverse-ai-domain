@@ -458,9 +458,8 @@ async function applyCoupon() {
   msg.className    = 'coupon-msg hidden';
 
   try {
-    const { data, error } = await supabase.functions.invoke('apply-coupon', {
-      body: { code },
-      headers: { Authorization: `Bearer ${currentSession.access_token}` },
+    const { data, error } = await supabase.rpc('apply_coupon', {
+      p_code: code
     });
 
     if (error || data?.error) {
@@ -468,7 +467,7 @@ async function applyCoupon() {
       msg.textContent = `❌ ${errText}`;
       msg.className   = 'coupon-msg error';
     } else {
-      msg.textContent = `✅ Coupon applied! You now have ${PLANS[data.plan]?.label || data.plan} plan access.`;
+      msg.textContent = `✅ Coupon applied! You now have the ${data.plan.toUpperCase()} plan.`;
       msg.className   = 'coupon-msg success';
       $('couponInput').value = '';
       // Refresh profile
