@@ -22,6 +22,8 @@ let sessionLogs    = [];
 let selectedSuffixes = [];
 let totalCheckedGlobal = 0;
 let totalFoundGlobal   = 0;
+let currentPlanOrder = { plan: '', price: 0, period: '' }; // for payment modal
+let currentUserRole  = 'user'; // admin state
 
 const $ = id => document.getElementById(id);
 
@@ -52,15 +54,32 @@ async function init() {
     }
   });
 
+  renderPricingGrid();
   bindEvents();
 }
 
 async function onSessionReady(session) {
-  try { currentProfile = await getProfile(session.user.id); } catch (e) { currentProfile = null; }
+  try { 
+    currentProfile = await getProfile(session.user.id);
+    if (currentProfile) {
+      currentUserRole = currentProfile.role || 'user';
+      if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
+        $('adminBtn').classList.remove('hidden');
+        if (currentUserRole === 'super_admin') {
+          $('tabAdminTeam').classList.remove('hidden');
+          $('tabAdminRevenue').classList.remove('hidden');
+          $('tabAdminPlans').classList.remove('hidden');
+        }
+      }
+    }
+  } catch (e) { 
+    currentProfile = null; 
+  }
   renderAuthUI(session);
   updateQuotaDisplay();
-  // Show upgrade notice based on plan
   updatePlanNotice();
+  // Load notifications
+  await fetchNotifications(session);
 }
 
 // ============================================
@@ -74,15 +93,7 @@ function loadSavedSettings() {
     $('targetCount').value = localStorage.getItem('targetCount');
     $('targetDisplay').textContent = localStorage.getItem('targetCount');
   }
-  try {
-    const saved = JSON.parse(localStorage.getItem('selectedSuffixes'));
-    if (Array.isArray(saved)) {
-      selectedSuffixes = saved;
-      document.querySelectorAll('.pill').forEach(p => {
-        if (selectedSuffixes.includes(p.dataset.value)) p.classList.add('active');
-      });
-    }
-  } catch (_) {}
+  // (suffix pills removed — brainstorm ideas now inject directly into promptInstructions)
 }
 
 function saveSettings() {
@@ -104,6 +115,12 @@ function renderGuestUI() {
   $('manualGate').classList.add('hidden'); // Allow guests to see the form without banner
   const heroSection = $('heroSection');
   if (heroSection) heroSection.classList.remove('hidden');
+  // Reset admin state
+  currentUserRole = 'user';
+  $('adminBtn').classList.add('hidden');
+  $('tabAdminTeam').classList.add('hidden');
+  $('tabAdminRevenue').classList.add('hidden');
+  $('tabAdminPlans').classList.add('hidden');
   updateQuotaDisplay();
 }
 
@@ -198,7 +215,7 @@ function startLog(domain) {
   const item = document.createElement('div');
   item.className    = 'log-item checking';
   item.dataset.domain = domain;
-  item.innerHTML    = `<span>${domain}.com</span><span class="log-checking">CHECKING...</span>`;
+  item.innerHTML    = `<span>${domain}.com</span><span class="log-checking">Checking...</span>`;
   list.prepend(item);
   return item;
 }
@@ -329,7 +346,7 @@ async function runAiLoop() {
       if (checkedDomains.includes(domain)) continue;
       checkedDomains.push(domain);
 
-      updateStatus(`Checking ${domain}.com via DNS...`);
+      updateStatus(`Checking ${domain}.com...`);
       const logEl = startLog(domain);
       const status = await checkDomainDNS(domain);
       updateLog(logEl, domain, status);
@@ -564,13 +581,22 @@ function bindEvents() {
   $('startManualBtn').addEventListener('click', startManualCheck);
   $('stopManualBtn').addEventListener('click',  () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
 
-  // Suffix pills
+  // Brainstorm idea pills — inject prompt into textarea on click
   $('suffixGroup').addEventListener('click', e => {
-    if (!e.target.classList.contains('pill')) return;
-    const val = e.target.dataset.value;
-    if (selectedSuffixes.includes(val)) { selectedSuffixes = selectedSuffixes.filter(s => s !== val); e.target.classList.remove('active'); }
-    else { selectedSuffixes.push(val); e.target.classList.add('active'); }
-    localStorage.setItem('selectedSuffixes', JSON.stringify(selectedSuffixes));
+    const pill = e.target.closest('.brainstorm-pill');
+    if (!pill) return;
+    const prompt = pill.dataset.prompt;
+    if (!prompt) return;
+
+    const textarea = $('promptInstructions');
+    textarea.value = prompt;
+    textarea.focus();
+    saveSettings();
+
+    // Flash active state for visual feedback
+    document.querySelectorAll('#suffixGroup .brainstorm-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    setTimeout(() => pill.classList.remove('active'), 1800);
   });
 
   // Auto-save
@@ -602,6 +628,35 @@ function bindEvents() {
     copyBtn.textContent = '✅ Copied!';
     setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
   });
+
+  // Payment modal steps
+  $('payNextBtn').addEventListener('click', () => {
+    $('payStep1').classList.add('hidden');
+    $('payStep2').classList.remove('hidden');
+  });
+  $('payBackBtn').addEventListener('click', () => {
+    $('payStep2').classList.add('hidden');
+    $('payStep1').classList.remove('hidden');
+  });
+  $('submitOrderBtn').addEventListener('click', submitOrder);
+  $('txHashInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitOrder(); });
+
+  // Notification bell
+  const bellBtn = $('notifBellBtn');
+  const notifPanel = $('notifPanel');
+  if (bellBtn && notifPanel) {
+    bellBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      notifPanel.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (!notifPanel.contains(e.target) && e.target !== bellBtn) {
+        notifPanel.classList.add('hidden');
+      }
+    });
+  }
+  const markAllBtn = $('notifMarkAllBtn');
+  if (markAllBtn) markAllBtn.addEventListener('click', markAllNotifsRead);
 }
 
 // ============================================
@@ -610,14 +665,603 @@ function bindEvents() {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ============================================
-// Payment Modal (USDT)
+// Notifications
+// ============================================
+async function fetchNotifications(session) {
+  if (!session) return;
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error || !data) return;
+    renderNotifPanel(data);
+  } catch (_) {}
+}
+
+function renderNotifPanel(notifications) {
+  const dot  = $('notifDot');
+  const list = $('notifList');
+  const unread = notifications.filter(n => !n.is_read);
+
+  if (unread.length > 0) {
+    dot.classList.remove('hidden');
+    dot.textContent = unread.length > 9 ? '9+' : unread.length;
+  } else {
+    dot.classList.add('hidden');
+  }
+
+  if (!notifications.length) {
+    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+
+  list.innerHTML = notifications.map(n => `
+    <div class="notif-item notif-${n.type} ${n.is_read ? 'notif-read' : ''}" data-id="${n.id}">
+      <div class="notif-msg">${n.message}</div>
+      <div class="notif-time">${new Date(n.created_at).toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+async function markAllNotifsRead() {
+  if (!currentSession) return;
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', currentSession.user.id)
+    .eq('is_read', false);
+  await fetchNotifications(currentSession);
+}
+
+// ============================================
+// Payment Modal (USDT) — 3-Step Flow
 // ============================================
 function openPaymentModal(planName, price, period) {
+  if (!currentSession) { openModal('signin'); return; }
+  currentPlanOrder = { plan: planName.toLowerCase(), price: Number(price), period };
   $('payPlanTitle').textContent  = `Get ${planName} — $${price}`;
   $('payPlanPeriod').textContent = `${period} · Pay with USDT (TRC20)`;
   $('payAmount').textContent     = `$${price} USDT`;
+  // Reset to step 1
+  $('payStep1').classList.remove('hidden');
+  $('payStep2').classList.add('hidden');
+  $('payStep3').classList.add('hidden');
+  $('txHashInput').value = '';
+  $('paySubmitMsg').className = 'coupon-msg hidden';
   $('paymentModal').classList.remove('hidden');
 }
-window.openPaymentModal = openPaymentModal; // expose for inline onclick
+window.openPaymentModal = openPaymentModal;
+
+async function submitOrder() {
+  if (!currentSession) { openModal('signin'); return; }
+  const txHash = $('txHashInput').value.trim();
+  const btn = $('submitOrderBtn');
+  const msg = $('paySubmitMsg');
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  msg.className = 'coupon-msg hidden';
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Check for duplicate pending tx_hash to prevent double submissions
+    if (txHash) {
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('tx_hash', txHash)
+        .in('status', ['pending', 'approved', 'awaiting_confirmation'])
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error('This transaction hash has already been submitted.');
+      }
+    }
+
+    // Insert order directly via Supabase JS
+    const { error } = await supabase
+      .from('orders')
+      .insert({
+        user_id: user.id,
+        user_email: user.email || 'unknown@email.com',
+        plan: currentPlanOrder.plan,
+        price: currentPlanOrder.price,
+        period: currentPlanOrder.period,
+        tx_hash: txHash,
+        status: 'pending'
+      });
+
+    if (error) throw error;
+
+    // Show success step
+    $('payStep2').classList.add('hidden');
+    $('payStep3').classList.remove('hidden');
+
+  } catch (err) {
+    msg.textContent = `❌ ${err.message}`;
+    msg.className = 'coupon-msg error';
+    msg.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Submit Order';
+  }
+}
+window.submitOrder = submitOrder;
+
+// ============================================
+// ADMIN DASHBOARD
+// ============================================
+
+// ---- Themed Confirm Modal (replaces glitchy native confirm()) ----
+let _confirmResolve = null;
+
+function showConfirm({ title = 'Are you sure?', message = '', icon = '⚠️', okText = 'Confirm', okClass = 'btn-primary' } = {}) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    $('confirmModalIcon').textContent = icon;
+    $('confirmModalTitle').textContent = title;
+    $('confirmModalMsg').textContent = message;
+    $('confirmModalOk').textContent = okText;
+    $('confirmModalOk').className = `btn ${okClass}`;
+    $('confirmModal').classList.remove('hidden');
+  });
+}
+
+function resolveConfirm(result) {
+  $('confirmModal').classList.add('hidden');
+  if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+}
+window.resolveConfirm = resolveConfirm;
+
+// ---- Open / Close ----
+function openAdminModal() {
+  if (currentUserRole !== 'admin' && currentUserRole !== 'super_admin') return;
+  $('adminModal').classList.remove('hidden');
+  switchAdminTab('pending');
+}
+window.openAdminModal = openAdminModal;
+
+function closeAdminModal() {
+  $('adminModal').classList.add('hidden');
+}
+window.closeAdminModal = closeAdminModal;
+
+// ---- Tab Switcher ----
+const ADMIN_TABS = ['Pending', 'History', 'Users', 'Revenue', 'Plans', 'Team'];
+
+function switchAdminTab(tab) {
+  ADMIN_TABS.forEach(t => {
+    const btn  = $(`tabAdmin${t}`);
+    const pane = $(`paneAdmin${t}`);
+    if (btn)  btn.classList.remove('active');
+    if (pane) pane.classList.add('hidden');
+  });
+  const key = tab.charAt(0).toUpperCase() + tab.slice(1);
+  const activeBtn  = $(`tabAdmin${key}`);
+  const activePane = $(`paneAdmin${key}`);
+  if (activeBtn)  activeBtn.classList.add('active');
+  if (activePane) activePane.classList.remove('hidden');
+
+  if (tab === 'pending' || tab === 'history') loadAdminOrders(tab);
+  if (tab === 'users')   loadAdminUsers();
+  if (tab === 'revenue') loadRevenueStats();
+  if (tab === 'plans')   loadAdminPlans();
+  if (tab === 'team')    loadAdminTeam();
+}
+window.switchAdminTab = switchAdminTab;
+
+// ---- Orders Tab ----
+async function loadAdminOrders(type) {
+  const tbody = type === 'pending' ? $('adminPendingTbody') : $('adminHistoryTbody');
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading…</td></tr>`;
+  try {
+    let q = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    q = type === 'pending'
+      ? q.in('status', ['pending', 'awaiting_confirmation'])
+      : q.in('status', ['approved', 'rejected']);
+    const { data: orders, error } = await q;
+    if (error) throw error;
+
+    if (!orders || orders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">No orders found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = '';
+    orders.forEach(o => {
+      const time = new Date(o.created_at).toLocaleString('en-US', { timeZone: 'Asia/Dhaka', hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const planTxt = `<strong>${o.plan.toUpperCase()}</strong> <span style="color:var(--text-muted);font-size:11px;">$${o.price}</span>`;
+      const txEl = o.tx_hash
+        ? `<a href="https://tronscan.org/#/transaction/${o.tx_hash}" target="_blank" class="tx-hash-link">${o.tx_hash.substring(0,10)}…</a>`
+        : `<span style="color:var(--danger);font-size:11px;font-weight:700;">MISSING</span>`;
+      let actionCol = '';
+      if (type === 'pending') {
+        actionCol = `<div class="admin-actions">
+          <button class="btn btn-primary btn-sm" onclick="processOrder('${o.id}','approve')">✅ Approve</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="processOrder('${o.id}','reject')">❌ Reject</button>
+          <button class="btn btn-ghost btn-sm" onclick="processOrder('${o.id}','ask_tx')">❓ Ask TX</button>
+        </div>`;
+      } else {
+        const cls = o.status === 'approved' ? 'badge-approved' : 'badge-rejected';
+        const actionedBy = o.actioned_by_email
+          ? `<span style="font-size:11px;color:var(--text-muted);display:block;margin-top:4px;">by ${o.actioned_by_email.split('@')[0]}</span>`
+          : '';
+        actionCol = `<div><span class="badge-status ${cls}">${o.status}</span>${actionedBy}</div>`;
+      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span style="font-size:11px;color:var(--text-muted);">${time}</span></td>
+        <td><strong>${(o.user_email||'User').split('@')[0]}</strong><br><span style="font-size:11px;color:var(--text-muted);">${o.user_email||'N/A'}</span></td>
+        <td>${planTxt}</td>
+        <td>${txEl}</td>
+        <td>${actionCol}</td>
+        ${type === 'history' ? `<td><span style="font-size:11px;color:var(--text-muted);">${o.actioned_by_email || '—'}</span></td>` : ''}`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger);">Error: ${err.message}</td></tr>`;
+  }
+}
+window.loadAdminOrders = loadAdminOrders;
+
+async function processOrder(orderId, action) {
+  const cfgMap = {
+    approve: { title: 'Approve this order?',   icon: '✅', message: 'The user\'s plan will be credited and they\'ll be notified.',  okText: 'Yes, Approve', okClass: 'btn-primary' },
+    reject:  { title: 'Reject this order?',    icon: '❌', message: 'The user will receive a rejection notification.',              okText: 'Yes, Reject',  okClass: 'btn-ghost'   },
+    ask_tx:  { title: 'Request TX hash?',      icon: '❓', message: 'The user will be prompted to submit their transaction hash.',  okText: 'Send Request', okClass: 'btn-ghost'   },
+  };
+  const ok = await showConfirm(cfgMap[action] || {});
+  if (!ok) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.rpc('handle_order_action', { p_order_id: orderId, p_action: action, p_admin_id: user.id });
+    if (error) throw error;
+    loadAdminOrders('pending');
+  } catch (err) {
+    await showConfirm({ title: 'Error', message: err.message, icon: '🚫', okText: 'OK', okClass: 'btn-ghost' });
+  }
+}
+window.processOrder = processOrder;
+
+// ---- Users Tab ----
+const PLAN_TIERS = ['free','starter','hustler','builder','pro','agency','enterprise','premium'];
+
+async function loadAdminUsers() {
+  const tbody = $('adminUsersTbody');
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading users…</td></tr>`;
+  try {
+    const [{ data: users, error }, { data: emails }] = await Promise.all([
+      supabase.from('profiles').select('id,plan,plan_expires_at,ai_sessions_month,role,created_at').order('created_at', { ascending: false }),
+      supabase.rpc('get_all_user_emails')
+    ]);
+    if (error) throw error;
+
+    const emailMap = {};
+    (emails || []).forEach(e => { emailMap[e.id] = e.email; });
+
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      const email   = emailMap[u.id] || u.id.substring(0,12) + '…';
+      const plan    = u.plan || 'free';
+      const badge   = `<span class="plan-badge plan-${plan}">${plan}</span>`;
+      const expires = u.plan_expires_at
+        ? new Date(u.plan_expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '—';
+
+      // Plan selector — admins can't set enterprise, super_admin can
+      const opts = PLAN_TIERS
+        .filter(p => p !== 'enterprise' || currentUserRole === 'super_admin')
+        .map(p => `<option value="${p}" ${p === plan ? 'selected' : ''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`)
+        .join('');
+
+      const unlimitedBtn = (currentUserRole === 'super_admin' && plan !== 'enterprise')
+        ? `<button class="btn btn-ghost btn-sm" style="color:#a855f7;" onclick="grantUnlimited('${u.id}')">♾️</button>`
+        : '';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <strong style="font-size:13px;">${email.split('@')[0]}</strong><br>
+          <span style="font-size:11px;color:var(--text-muted);">${email}</span>
+        </td>
+        <td>${badge}</td>
+        <td style="font-size:12px;">${expires}</td>
+        <td style="font-size:12px;">${u.ai_sessions_month || 0}</td>
+        <td>
+          <div class="admin-actions">
+            <select id="planSel_${u.id}" class="form-select" style="font-size:12px;height:30px;padding:0 8px;">${opts}</select>
+            <button class="btn btn-primary btn-sm" onclick="setUserPlan('${u.id}')">Apply</button>
+            ${unlimitedBtn}
+          </div>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger);">Error: ${err.message}</td></tr>`;
+  }
+}
+window.loadAdminUsers = loadAdminUsers;
+
+async function setUserPlan(userId) {
+  const newPlan = $(`planSel_${userId}`).value;
+  const ok = await showConfirm({ title: `Set plan to "${newPlan}"?`, message: 'The user will be notified immediately.', icon: '📋', okText: 'Apply Plan', okClass: 'btn-primary' });
+  if (!ok) return;
+  try {
+    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: newPlan });
+    if (error) throw error;
+    loadAdminUsers();
+  } catch (err) {
+    await showConfirm({ title: 'Error', message: err.message, icon: '🚫', okText: 'OK', okClass: 'btn-ghost' });
+  }
+}
+window.setUserPlan = setUserPlan;
+
+async function grantUnlimited(userId) {
+  const ok = await showConfirm({ title: 'Grant Unlimited Plan?', message: 'Sets user to Enterprise (Unlimited) with no expiry. Super Admin only.', icon: '♾️', okText: 'Grant Unlimited', okClass: 'btn-primary' });
+  if (!ok) return;
+  try {
+    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: 'enterprise' });
+    if (error) throw error;
+    loadAdminUsers();
+  } catch (err) {
+    await showConfirm({ title: 'Error', message: err.message, icon: '🚫', okText: 'OK', okClass: 'btn-ghost' });
+  }
+}
+window.grantUnlimited = grantUnlimited;
+
+// ---- Revenue Tab (Super Admin only) ----
+async function loadRevenueStats() {
+  ['revTotal','revMonth','revOrders','revPaidUsers'].forEach(id => { $( id).textContent = '…'; });
+  try {
+    const { data, error } = await supabase.rpc('get_revenue_stats');
+    if (error) throw error;
+
+    $('revTotal').textContent    = `$${Number(data.total_revenue    || 0).toFixed(2)}`;
+    $('revMonth').textContent    = `$${Number(data.this_month_revenue || 0).toFixed(2)}`;
+    $('revOrders').textContent   = data.total_orders  || 0;
+    $('revPaidUsers').textContent = data.paid_users   || 0;
+
+    const thisM = Number(data.this_month_revenue || 0);
+    const lastM = Number(data.last_month_revenue || 0);
+    const delta = $('revDelta');
+    if (lastM > 0) {
+      const pct = (((thisM - lastM) / lastM) * 100).toFixed(1);
+      delta.textContent = `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs last month`;
+      delta.className = `rev-stat-delta ${pct >= 0 ? 'positive' : 'negative'}`;
+    } else {
+      delta.textContent = thisM > 0 ? 'First month! 🎉' : 'No data yet';
+      delta.className = 'rev-stat-delta neutral';
+    }
+
+    const pTbody = $('revPlanTbody');
+    pTbody.innerHTML = (data.plan_breakdown || []).length
+      ? data.plan_breakdown.map(p => `<tr>
+          <td><span class="plan-badge plan-${p.plan}">${p.plan}</span></td>
+          <td>${p.count}</td>
+          <td style="font-weight:700;color:var(--success);">$${Number(p.rev||0).toFixed(2)}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted);">No approved orders yet.</td></tr>`;
+
+    const rTbody = $('revRecentTbody');
+    rTbody.innerHTML = (data.recent_orders || []).length
+      ? data.recent_orders.map(o => {
+          const dt = new Date(o.updated_at).toLocaleString('en-US', { timeZone:'Asia/Dhaka', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+          return `<tr>
+            <td style="font-size:11px;color:var(--text-muted);">${dt}</td>
+            <td>${(o.user_email||'').split('@')[0]}</td>
+            <td><span class="plan-badge plan-${o.plan}">${o.plan}</span></td>
+            <td style="font-weight:700;color:var(--success);">$${Number(o.price||0).toFixed(2)}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted);">No transactions yet.</td></tr>`;
+
+  } catch (err) {
+    $('revTotal').textContent = 'Error';
+    console.error('Revenue error:', err);
+  }
+}
+window.loadRevenueStats = loadRevenueStats;
+
+// ---- Manage Admins Tab ----
+async function loadAdminTeam() {
+  const tbody = $('adminTeamTbody');
+  tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted);">Loading…</td></tr>`;
+  try {
+    const [{ data: admins, error }, { data: emails }] = await Promise.all([
+      supabase.from('profiles').select('id,role').in('role',['admin','super_admin']).order('role',{ ascending:false }),
+      supabase.rpc('get_all_user_emails')
+    ]);
+    if (error) throw error;
+
+    const emailMap = {};
+    (emails || []).forEach(e => { emailMap[e.id] = e.email; });
+
+    tbody.innerHTML = '';
+    admins.forEach(a => {
+      const email = emailMap[a.id] || a.id.substring(0,12) + '…';
+      const roleBadge = a.role === 'super_admin'
+        ? `<span class="badge-status" style="background:rgba(168,85,247,0.15);color:#a855f7;">Super Admin</span>`
+        : `<span class="badge-status badge-approved">Admin</span>`;
+      const action = a.role === 'admin'
+        ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeAdmin('${a.id}')">Revoke</button>`
+        : `<span style="font-size:11px;color:var(--text-muted);">Root</span>`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><strong>${email}</strong></td><td>${roleBadge}</td><td>${action}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--danger);">Failed to load</td></tr>`;
+  }
+}
+window.loadAdminTeam = loadAdminTeam;
+
+async function grantAdminAccess() {
+  const emailInput = $('newAdminEmail');
+  const msg = $('adminTeamMsg');
+  const email = emailInput.value.trim();
+  if (!email) return;
+  try {
+    const { data: allUsers } = await supabase.rpc('get_all_user_emails');
+    const target = (allUsers || []).find(u => u.email === email);
+    if (!target) throw new Error('User not found. They must sign in at least once first.');
+    const { error } = await supabase.from('profiles').update({ role: 'admin' }).eq('id', target.id);
+    if (error) throw error;
+    msg.textContent = '✅ Admin access granted!';
+    msg.className = 'form-msg success';
+    msg.classList.remove('hidden');
+    emailInput.value = '';
+    loadAdminTeam();
+  } catch (err) {
+    msg.textContent = err.message || 'Failed';
+    msg.className = 'form-msg error';
+    msg.classList.remove('hidden');
+  }
+}
+window.grantAdminAccess = grantAdminAccess;
+
+async function revokeAdmin(id) {
+  const ok = await showConfirm({ title: 'Revoke Admin Access?', message: 'They will lose all admin privileges immediately.', icon: '⚠️', okText: 'Yes, Revoke', okClass: 'btn-ghost' });
+  if (!ok) return;
+  try {
+    const { error } = await supabase.from('profiles').update({ role: 'user' }).eq('id', id);
+    if (error) throw error;
+    loadAdminTeam();
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
+}
+window.revokeAdmin = revokeAdmin;
+
+// ============================================
+// PLAN MANAGEMENT (Super Admin)
+// ============================================
+let _cachedPlans = null;
+
+async function loadPlansFromDB() {
+  const { data, error } = await supabase
+    .from('plans')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (!error && data) _cachedPlans = data;
+  return _cachedPlans;
+}
+
+// ---- Render homepage pricing grid dynamically ----
+async function renderPricingGrid() {
+  const grid = $('pricingGrid');
+  if (!grid) return;
+  try {
+    const plans = await loadPlansFromDB();
+    if (!plans || plans.length === 0) return;
+    grid.innerHTML = plans.filter(p => p.is_active).map(p => {
+      const isFree = p.key === 'free';
+      const isPopular = p.is_popular;
+      const isAgency = p.key === 'agency';
+      const cardClass = isPopular ? 'pricing-card popular' : isAgency ? 'pricing-card agency-card' : 'pricing-card';
+      const badge = isPopular ? `<div class="popular-badge">⭐ Most Popular</div>` :
+                    isAgency ? `<div class="agency-badge">🏆 Best Value</div>` : '';
+      const priceDisplay = isFree ? `<span class="price-num">$0</span>` :
+        `<span class="price-num">$${p.price}</span><span class="price-per">${p.period}</span>`;
+      const btnClass = isPopular ? 'btn btn-primary full-width' : isAgency ? 'btn btn-gold full-width' : 'btn btn-ghost full-width';
+      const btnLabel = isFree ? 'Get Started Free' : `Get ${p.display_name} — $${p.price} <span class="usdt-tag">USDT</span>`;
+      const btnAction = isFree
+        ? `id="pricingSignupBtn"`
+        : `onclick="openPaymentModal('${p.display_name}','${p.price}','${p.period}')"` ;
+      const featureItems = (p.features || []).map(f => {
+        const isNo = f.startsWith('❌');
+        return `<li class="${isNo ? 'feat-no' : 'feat-yes'}">${f.replace(/^[✅❌]\s*/,'')}</li>`;
+      }).join('');
+      return `<div class="${cardClass}">
+        ${badge}
+        <div class="plan-name">${p.display_name}</div>
+        <div class="plan-price">${priceDisplay}</div>
+        ${p.billed_note ? `<div class="plan-billed">${p.billed_note}</div>` : ''}
+        <ul class="plan-features">${featureItems}</ul>
+        <button class="${btnClass}" ${btnAction}>${btnLabel}</button>
+      </div>`;
+    }).join('');
+    // Re-bind signup btn if exists
+    const signupBtn = $('pricingSignupBtn');
+    if (signupBtn) signupBtn.addEventListener('click', () => $('authModal')?.classList.remove('hidden'));
+  } catch (e) {
+    console.warn('Could not load plans from DB, keeping skeleton.');
+  }
+}
+window.renderPricingGrid = renderPricingGrid;
+
+// ---- Admin Plans Editor ----
+async function loadAdminPlans() {
+  const tbody = $('adminPlansTbody');
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">Loading…</td></tr>`;
+  try {
+    const plans = await loadPlansFromDB();
+    tbody.innerHTML = '';
+    (plans || []).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <span class="plan-badge plan-${p.key}">${p.display_name}</span>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${p.key}</div>
+        </td>
+        <td><input type="number" id="pe_price_${p.key}" value="${p.price}" min="0" step="0.01"
+          style="width:70px;font-size:13px;" class="form-input-sm"></td>
+        <td><input type="text" id="pe_period_${p.key}" value="${p.period}"
+          style="width:90px;font-size:12px;" class="form-input-sm"></td>
+        <td><input type="text" id="pe_billed_${p.key}" value="${p.billed_note || ''}"
+          style="width:160px;font-size:12px;" class="form-input-sm"></td>
+        <td style="text-align:center;">
+          <input type="checkbox" id="pe_popular_${p.key}" ${p.is_popular ? 'checked' : ''}
+            style="width:16px;height:16px;cursor:pointer;"></td>
+        <td style="text-align:center;">
+          <input type="checkbox" id="pe_active_${p.key}" ${p.is_active ? 'checked' : ''}
+            style="width:16px;height:16px;cursor:pointer;"></td>
+        <td><button class="btn btn-primary btn-sm" onclick="savePlan('${p.key}')">Save</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">Error: ${err.message}</td></tr>`;
+  }
+}
+window.loadAdminPlans = loadAdminPlans;
+
+async function savePlan(key) {
+  const msg = $('planSaveMsg');
+  // Read current plan data from cache for fields we don't edit inline
+  const current = (_cachedPlans || []).find(p => p.key === key) || {};
+  const payload = {
+    p_key:             key,
+    p_display_name:    current.display_name,
+    p_price:           parseFloat($(`pe_price_${key}`)?.value || current.price),
+    p_period:          $(`pe_period_${key}`)?.value || current.period,
+    p_billed_note:     $(`pe_billed_${key}`)?.value || current.billed_note || '',
+    p_features:        current.features || [],
+    p_ai_searches:     current.ai_searches,
+    p_manual_searches: current.manual_searches,
+    p_is_popular:      $(`pe_popular_${key}`)?.checked ?? current.is_popular,
+    p_is_active:       $(`pe_active_${key}`)?.checked ?? current.is_active,
+    p_sort_order:      current.sort_order,
+  };
+  try {
+    const { error } = await supabase.rpc('super_admin_update_plan', payload);
+    if (error) throw error;
+    // Refresh cache and re-render homepage
+    _cachedPlans = null;
+    await renderPricingGrid();
+    msg.textContent = `✅ ${key} plan saved and homepage updated!`;
+    msg.className = 'form-msg success';
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 3000);
+    loadAdminPlans();
+  } catch (err) {
+    msg.textContent = `❌ Failed: ${err.message}`;
+    msg.className = 'form-msg error';
+    msg.classList.remove('hidden');
+  }
+}
+window.savePlan = savePlan;
 
 init();
