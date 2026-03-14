@@ -191,22 +191,32 @@ function setRunning(mode) {
 // ============================================
 // Log & Results
 // ============================================
-function addLog(domain, status) {
+function startLog(domain) {
+  const list = $('logList');
+  if (list.querySelector('.log-empty')) list.innerHTML = '';
+
+  const item = document.createElement('div');
+  item.className    = 'log-item checking';
+  item.dataset.domain = domain;
+  item.innerHTML    = `<span>${domain}.com</span><span class="log-checking">CHECKING...</span>`;
+  list.prepend(item);
+  return item;
+}
+
+function updateLog(item, domain, status) {
+  if (!item) return;
   sessionLogs.push({ domain, status });
   totalCheckedGlobal++;
   $('totalChecked').textContent = totalCheckedGlobal;
 
   const filter = $('logFilter').value;
-  if (filter !== 'all' && filter !== status) return;
-
-  const list = $('logList');
-  if (list.querySelector('.log-empty')) list.innerHTML = '';
-
-  const item = document.createElement('div');
-  item.className    = 'log-item';
+  if (filter !== 'all' && filter !== status) {
+    item.remove();
+    return;
+  }
+  item.className = 'log-item';
   item.dataset.status = status;
-  item.innerHTML    = `<span>${domain}.com</span><span class="log-${status}">${status.toUpperCase()}</span>`;
-  list.prepend(item);
+  item.innerHTML = `<span>${domain}.com</span><span class="log-${status}">${status.toUpperCase()}</span>`;
 }
 
 function addChip(domain) {
@@ -320,8 +330,9 @@ async function runAiLoop() {
       checkedDomains.push(domain);
 
       updateStatus(`Checking ${domain}.com via DNS...`);
+      const logEl = startLog(domain);
       const status = await checkDomainDNS(domain);
-      addLog(domain, status);
+      updateLog(logEl, domain, status);
 
       if (status === 'available') {
         addChip(domain);
@@ -404,8 +415,9 @@ async function startManualCheck() {
   for (let i = 0; i < domains.length; i++) {
     if (!isRunning) break;
     updateStatus(`Checking ${i + 1}/${domains.length}: ${domains[i]}.com`);
+    const logEl = startLog(domains[i]);
     const status = await checkDomainDNS(domains[i]);
-    addLog(domains[i], status);
+    updateLog(logEl, domains[i], status);
     if (status === 'available') addChip(domains[i]);
     await sleep(100);
   }
