@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JunoverseAI Domain Search — Find Available Domains with AI</title>
+  <meta name="description" content="AI-powered domain hunting by JunoverseAI. Find available .com domains instantly — no API key needed. Free to start.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Animated background orbs -->
+  <div class="bg-canvas" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="modalOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button id="closeModalBtn" class="modal-close" aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <div class="modal-logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="url(#lg1)"/>
+          <circle cx="16" cy="15" r="7" stroke="white" stroke-width="2.2" fill="none"/>
+          <line x1="21.5" y1="20.5" x2="27" y2="26" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <defs><linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#2997ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+        </svg>
+        <span>JunoverseAI</span>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-modal-tab="signin">Sign In</button>
+        <button class="modal-tab" data-modal-tab="signup">Create Account</button>
+      </div>
+
+      <!-- Sign In -->
+      <div id="signinPane" class="modal-pane active">
+        <div class="form-group">
+          <label for="signinEmail">Email</label>
+          <input type="email" id="signinEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="signinPassword">Password</label>
+          <input type="password" id="signinPassword" placeholder="Your password" autocomplete="current-password">
+        </div>
+        <button id="signinBtn" class="btn btn-primary full-width">Sign In</button>
+        <p id="signinMsg" class="form-msg hidden"></p>
+      </div>
+
+      <!-- Sign Up -->
+      <div id="signupPane" class="modal-pane hidden">
+        <div class="perks-list">
+          <div class="perk">✅ 3 AI Domain Hunts</div>
+          <div class="perk">✅ 200 Manual Checks</div>
+          <div class="perk">✅ No API Key Needed</div>
+          <div class="perk">✅ Free Forever</div>
+        </div>
+        <div class="form-group">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="signupPassword">Password</label>
+          <input type="password" id="signupPassword" placeholder="Min 6 characters" autocomplete="new-password">
+        </div>
+        <button id="signupBtn" class="btn btn-primary full-width">Create Free Account</button>
+        <p id="signupMsg" class="form-msg hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo-mark">
+        <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="url(#hg1)"/>
+          <circle cx="16" cy="15" r="7" stroke="white" stroke-width="2.2" fill="none"/>
+          <line x1="21.5" y1="20.5" x2="27" y2="26" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <defs><linearGradient id="hg1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#2997ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+        </svg>
+        <span class="logo-text">JunoverseAI <span class="logo-sub">Domain Search</span></span>
+      </div>
+
+      <nav class="header-actions">
+        <!-- Guest state -->
+        <div id="guestActions" class="auth-actions">
+          <button class="btn btn-ghost btn-sm" id="openSigninBtn">Sign In</button>
+          <button class="btn btn-primary btn-sm" id="openSignupBtn">Sign Up Free</button>
+        </div>
+        <!-- Logged-in state -->
+        <div id="userActions" class="auth-actions hidden">
+          <div class="user-quota-badge" id="quotaBadge">
+            <span class="quota-ai" id="headerAiQuota">3 AI left</span>
+            <span class="quota-sep">·</span>
+            <span class="quota-manual" id="headerManualQuota">200 manual</span>
+          </div>
+          <span class="user-email" id="userEmailDisplay"></span>
+          <button class="btn btn-ghost btn-sm" id="signOutBtn">Sign Out</button>
+        </div>
+        <button id="themeToggleBtn" class="icon-btn" aria-label="Toggle theme">
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-14.07 1.41 1.41M18.66 18.66l1.41 1.41M2 12h2m16 0h2M4.93 18.66l1.41-1.41M18.66 5.34l1.41-1.41"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section id="heroSection" class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">✨ Powered by Gemini AI</div>
+      <h2 class="hero-headline">Find Available Domains,<br><em>Instantly.</em></h2>
+      <p class="hero-sub">No API key. No credit card. Just type your keywords and let AI do the hunting — verified live against the internet's DNS.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong id="totalChecked">0</strong>
+          <span>Domains Checked</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <strong id="totalFound">0</strong>
+          <span>Available Found</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <strong>100%</strong>
+          <span>Free to Start</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main App -->
+  <main class="app-grid">
+
+    <!-- LEFT: Control Panel -->
+    <section class="control-panel">
+
+      <!-- Tabs -->
+      <div class="segmented-control">
+        <button class="segment active" data-target="ai-tab">🤖 AI Hunter</button>
+        <button class="segment" data-target="manual-tab">📋 Manual Check</button>
+      </div>
+
+      <!-- AI Tab -->
+      <div id="ai-tab" class="tab active">
+        <!-- Guest Notice -->
+        <div id="guestNotice" class="plan-banner">
+          <div>
+            <strong>1 free AI search remaining</strong>
+            <p>Sign up free to get more AI searches & manual checks!</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="signupFromNoticeBtn">Sign Up</button>
+        </div>
+
+        <!-- Quota Notice for free users -->
+        <div id="quotaNotice" class="plan-banner plan-banner-blue hidden">
+          <div>
+            <strong id="quotaNoticeText">3 AI searches remaining</strong>
+            <p>Upgrade for unlimited hunting</p>
+          </div>
+          <button class="btn btn-gold btn-sm" id="upgradeBtn">⚡ Premium $10</button>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="form-group">
+              <label>Keywords</label>
+              <input type="text" id="keywords" placeholder="e.g. AI, productivity, SaaS, agency">
+            </div>
+            <div class="form-group">
+              <label>Prompt Instructions <span class="opt-badge">Optional</span></label>
+              <textarea id="promptInstructions" rows="2" placeholder="e.g. Make it sound futuristic and premium."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Suffix Mix-ins</label>
+              <div class="pill-group" id="suffixGroup">
+                <button class="pill" data-value="Agency">Agency</button>
+                <button class="pill" data-value="HQ">HQ</button>
+                <button class="pill" data-value="App">App</button>
+                <button class="pill" data-value="Co">Co</button>
+                <button class="pill" data-value="Hub">Hub</button>
+                <button class="pill" data-value="AI">AI</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Batch Size</label>
+                <input type="number" id="batchSize" value="15" min="5" max="50">
+              </div>
+              <div class="form-group flex-1">
+                <label>Target Found</label>
+                <input type="number" id="targetCount" value="5" min="1" max="50">
+              </div>
+            </div>
+            <button id="startAiBtn" class="btn btn-primary full-width mt-16">🚀 Start AI Hunt</button>
+            <button id="stopAiBtn" class="btn btn-danger full-width mt-16" style="display:none">⏹ Stop Hunting</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Tab -->
+      <div id="manual-tab" class="tab">
+
+        <!-- Not logged in gate -->
+        <div id="manualGate" class="plan-banner hidden">
+          <div>
+            <strong>Sign in required</strong>
+            <p>Sign up free to unlock more manual domain checks!</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="signupFromManualBtn">Sign Up Free</button>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="form-group">
+              <label>Domains to Check <span class="opt-badge" id="manualCountBadge">1 remaining</span></label>
+              <textarea id="manualDomains" rows="10" placeholder="apple&#10;google&#10;shinynest&#10;swiftleaf&#10;&#10;One per line, no .com needed"></textarea>
+            </div>
+            <button id="startManualBtn" class="btn btn-primary full-width">Check Domains</button>
+            <button id="stopManualBtn" class="btn btn-danger full-width" style="display:none">Stop Checking</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT: Results Panel -->
+    <section class="results-panel">
+
+      <!-- Status Card -->
+      <div class="card status-card">
+        <div class="status-row">
+          <div>
+            <div class="status-label">Status</div>
+            <div id="statusText" class="status-value idle">Idle</div>
+          </div>
+          <div class="text-right">
+            <div class="status-label">Available Found</div>
+            <div class="status-value"><span id="foundCount">0</span> / <span id="targetDisplay">5</span></div>
+          </div>
+        </div>
+        <div id="foundChips" class="found-chips">
+          <div class="chips-empty">Available domains will appear here as green chips</div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="card log-card">
+        <div class="log-header">
+          <h3>Live Activity</h3>
+          <div class="log-controls">
+            <select id="logFilter" class="select-minimal">
+              <option value="all">All</option>
+              <option value="available">✅ Available</option>
+              <option value="taken">❌ Taken</option>
+            </select>
+            <button id="downloadLogBtn" class="btn btn-ghost btn-sm">Export</button>
+          </div>
+        </div>
+        <div id="logList" class="log-list">
+          <div class="log-empty">Results will stream here as domains are checked</div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Pricing Section -->
+  <section class="pricing-section" id="pricing">
+    <div class="pricing-header">
+      <div class="pricing-eyebrow">Simple, Transparent Pricing</div>
+      <h2>Scale Your Domain Hunting</h2>
+      <p>Start free. Pay once a year. Cancel anytime.</p>
+    </div>
+
+    <!-- Coupon Bar -->
+    <div class="coupon-bar">
+      <div class="coupon-inner">
+        <span class="coupon-icon">🎟️</span>
+        <input type="text" id="couponInput" placeholder="Have a coupon code? Enter it here" maxlength="24" autocomplete="off">
+        <button class="btn btn-primary btn-sm" id="applyCouponBtn">Apply</button>
+      </div>
+      <p id="couponMsg" class="coupon-msg hidden"></p>
+    </div>
+
+    <!-- Pricing Grid: 3 x 2 -->
+    <div class="pricing-grid">
+
+      <!-- Free -->
+      <div class="pricing-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price"><span class="price-num">$0</span></div>
+        <div class="plan-billed">Forever free · No credit card</div>
+        <ul class="plan-features">
+          <li class="feat-yes">3 AI hunts total · 40 domains each</li>
+          <li class="feat-yes">3 manual sessions · 50 domains each</li>
+          <li class="feat-no">Monthly quota refresh</li>
+          <li class="feat-no">Priority DNS processing</li>
+        </ul>
+        <button class="btn btn-ghost full-width" id="pricingSignupBtn">Get Started Free</button>
+      </div>
+
+      <!-- Starter $9 -->
+      <div class="pricing-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><span class="price-num">$9</span><span class="price-per">/ 2 months</span></div>
+        <div class="plan-billed">$4.50/month · Best for trying out</div>
+        <ul class="plan-features">
+          <li class="feat-yes">5 AI hunts/month · 60 domains each</li>
+          <li class="feat-yes">10 manual sessions/month · 60 domains each</li>
+          <li class="feat-yes">Monthly quota refresh</li>
+          <li class="feat-no">Unlimited manual checks</li>
+        </ul>
+        <button class="btn btn-ghost full-width" onclick="openPaymentModal('Starter','9','2 months')">Get Starter — $9 <span class="usdt-tag">USDT</span></button>
+      </div>
+
+      <!-- Hustler $29 -->
+      <div class="pricing-card">
+        <div class="plan-name">Hustler</div>
+        <div class="plan-price"><span class="price-num">$29</span><span class="price-per">/ year</span></div>
+        <div class="plan-billed">$2.42/month · vs $54 for Starter</div>
+        <ul class="plan-features">
+          <li class="feat-yes">10 AI hunts/month · 100 domains each</li>
+          <li class="feat-yes">20 manual sessions/month · 100 domains each</li>
+          <li class="feat-yes">Monthly quota refresh</li>
+          <li class="feat-no">Unlimited manual checks</li>
+        </ul>
+        <button class="btn btn-ghost full-width" onclick="openPaymentModal('Hustler','29','/year')">Get Hustler — $29 <span class="usdt-tag">USDT</span></button>
+      </div>
+
+      <!-- Builder $59 — Most Popular -->
+      <div class="pricing-card popular">
+        <div class="popular-badge">⭐ Most Popular</div>
+        <div class="plan-name">Builder</div>
+        <div class="plan-price"><span class="price-num">$59</span><span class="price-per">/ year</span></div>
+        <div class="plan-billed">$4.92/month · 3× more AI than Hustler</div>
+        <ul class="plan-features">
+          <li class="feat-yes">30 AI hunts/month · 100 domains each</li>
+          <li class="feat-yes">Unlimited manual sessions · 100 domains each</li>
+          <li class="feat-yes">Monthly refresh + priority processing</li>
+          <li class="feat-yes">Early feature access</li>
+        </ul>
+        <button class="btn btn-primary full-width" onclick="openPaymentModal('Builder','59','/year')">Get Builder — $59 <span class="usdt-tag">USDT</span></button>
+      </div>
+
+      <!-- Pro $99 -->
+      <div class="pricing-card">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><span class="price-num">$99</span><span class="price-per">/ year</span></div>
+        <div class="plan-billed">$8.25/month · For domain investors</div>
+        <ul class="plan-features">
+          <li class="feat-yes">80 AI hunts/month · 100 domains each</li>
+          <li class="feat-yes">Unlimited manual sessions · 100 domains each</li>
+          <li class="feat-yes">All Builder features</li>
+          <li class="feat-yes">Priority support</li>
+        </ul>
+        <button class="btn btn-ghost full-width" onclick="openPaymentModal('Pro','99','/year')">Get Pro — $99 <span class="usdt-tag">USDT</span></button>
+      </div>
+
+      <!-- Agency $199 -->
+      <div class="pricing-card agency-card">
+        <div class="agency-badge">🏆 Best Value</div>
+        <div class="plan-name">Agency</div>
+        <div class="plan-price"><span class="price-num">$199</span><span class="price-per">/ year</span></div>
+        <div class="plan-billed">Just $0.55/day · Everything unlimited</div>
+        <ul class="plan-features">
+          <li class="feat-yes">200 AI hunts/month · 100 domains each</li>
+          <li class="feat-yes">Unlimited manual checks · No domain cap</li>
+          <li class="feat-yes">All Pro features</li>
+          <li class="feat-yes">Dedicated priority support</li>
+        </ul>
+        <button class="btn btn-gold full-width" onclick="openPaymentModal('Agency','199','/year')">Get Agency — $199 <span class="usdt-tag">USDT</span></button>
+      </div>
+
+    </div>
+
+    <!-- Enterprise Row -->
+    <div class="enterprise-row">
+      <div class="enterprise-card">
+        <div class="enterprise-info">
+          <strong>🏢 Enterprise</strong>
+          <span>Unlimited everything. Custom SLA. Onboarding support. For teams & organizations.</span>
+        </div>
+        <div class="enterprise-cta">
+          <a href="https://t.me/sayedjohon" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">💬 t.me/sayedjohon</a>
+          <a href="mailto:contact.sayedjohon@gmail.com" class="btn btn-ghost btn-sm">✉️ Email Us</a>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="dev-card">
+        <img src="/sayed-johon.jpg" alt="Sayed Johon" class="dev-avatar" onerror="this.style.display='none'">
+        <div class="dev-info">
+          <strong>Sayed Johon</strong>
+          <span>AI Expert & Content Creator</span>
+        </div>
+      </div>
+      <div class="footer-links">
+        <a href="https://youtube.com/@junoverseai" target="_blank" rel="noopener" class="footer-link">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube @JunoverseAI
+        </a>
+        <a href="https://peeai.com" target="_blank" rel="noopener" class="footer-link">🎓 peeai.com</a>
+      </div>
+      <p class="footer-copy">© 2025 JunoverseAI · Built with ❤️ by Sayed Johon</p>
+    </div>
+  </footer>
+
+  <!-- USDT Payment Modal -->
+  <div id="paymentModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card payment-modal">
+      <button id="closePaymentBtn" class="modal-close" aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <div class="pay-header">
+        <div class="pay-icon">💎</div>
+        <h3 id="payPlanTitle">Get Builder — $59</h3>
+        <p id="payPlanPeriod" class="pay-period">/year · Pay with USDT (TRC20)</p>
+      </div>
+
+      <div class="pay-amount-row">
+        <span>Send exactly</span>
+        <strong id="payAmount" class="pay-amount-num">$59 USDT</strong>
+        <span>to this address:</span>
+      </div>
+
+      <div class="pay-qr-wrap">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?data=TWE9mGmJ3eUN4qkKBpPhNRKx63LSD7ZrxW&size=160x160&margin=8&color=000000&bgcolor=ffffff" alt="USDT TRC20 Wallet QR" class="pay-qr">
+      </div>
+
+      <div class="pay-network-badge">🔶 TRON Network (TRC20) only</div>
+
+      <div class="pay-address-box">
+        <span class="pay-addr-text" id="walletAddrText">TWE9mGmJ3eUN4qkKBpPhNRKx63LSD7ZrxW</span>
+        <button class="btn btn-ghost btn-sm pay-copy-btn" id="copyWalletBtn">Copy</button>
+      </div>
+
+      <div class="pay-note">
+        <strong>After sending:</strong> message on Telegram with your <em>transaction ID</em> + your registered email to activate your plan within minutes.
+      </div>
+
+      <a href="https://t.me/sayedjohon" target="_blank" rel="noopener" class="btn btn-primary full-width pay-tg-btn">
+        💬 Message @sayedjohon on Telegram
+      </a>
+    </div>
+  </div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
