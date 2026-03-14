@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const fullPrompt = `${defaultPrompt}${customPart}${suffixPart}\n\nKeywords: ${keywords}${avoidPart}`;
 
     // Call Gemini
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
     const geminiRes = await fetch(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
