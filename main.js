@@ -18,10 +18,7 @@ let currentProfile = null;
 let isRunning = false;
 let foundDomains   = [];
 let checkedDomains = [];
-let sessionLogs    = [];
-let selectedSuffixes = [];
-let totalCheckedGlobal = 0;
-let totalFoundGlobal   = 0;
+
 
 const $ = id => document.getElementById(id);
 
@@ -69,20 +66,11 @@ async function onSessionReady(session) {
 function loadSavedSettings() {
   if (localStorage.getItem('keywords'))           $('keywords').value           = localStorage.getItem('keywords');
   if (localStorage.getItem('promptInstructions')) $('promptInstructions').value = localStorage.getItem('promptInstructions');
-  if (localStorage.getItem('batchSize'))          $('batchSize').value          = localStorage.getItem('batchSize');
-  if (localStorage.getItem('targetCount')) {
-    $('targetCount').value = localStorage.getItem('targetCount');
-    $('targetDisplay').textContent = localStorage.getItem('targetCount');
-  }
-  try {
-    const saved = JSON.parse(localStorage.getItem('selectedSuffixes'));
-    if (Array.isArray(saved)) {
-      selectedSuffixes = saved;
-      document.querySelectorAll('.pill').forEach(p => {
-        if (selectedSuffixes.includes(p.dataset.value)) p.classList.add('active');
-      });
+  if (localStorage.getItem('batchSize'))          $('batchSize').value          = localStorage.getItem('batchSize') || 15;
+    if (localStorage.getItem('targetCount')) {
+      $('targetCount').value = localStorage.getItem('targetCount');
+      $('targetDisplay').textContent = localStorage.getItem('targetCount');
     }
-  } catch (_) {}
 }
 
 function saveSettings() {
@@ -171,8 +159,8 @@ function setRunning(mode) {
   const off = isRunning;
   ['keywords','promptInstructions','batchSize','targetCount','manualDomains']
     .forEach(id => { if ($(id)) $(id).disabled = off; });
-  const sg = $('suffixGroup');
-  if (sg) { sg.style.pointerEvents = off ? 'none' : 'auto'; sg.style.opacity = off ? '0.6' : '1'; }
+  const pGroup = $('promptIdeasGroup');
+  if (pGroup) { pGroup.style.pointerEvents = off ? 'none' : 'auto'; pGroup.style.opacity = off ? '0.6' : '1'; }
 
   if (mode === 'ai') {
     $('startAiBtn').style.display   = 'none';
@@ -349,7 +337,6 @@ async function runAiLoop() {
       keywords:           $('keywords').value,
       batchSize,
       promptInstructions: $('promptInstructions').value,
-      selectedSuffixes,
       checkedDomains:     checkedDomains.slice(-50),
     }, currentSession);
 
@@ -600,14 +587,17 @@ function bindEvents() {
   $('startManualBtn').addEventListener('click', startManualCheck);
   $('stopManualBtn').addEventListener('click',  () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
 
-  // Suffix pills
-  $('suffixGroup').addEventListener('click', e => {
-    if (!e.target.classList.contains('pill')) return;
-    const val = e.target.dataset.value;
-    if (selectedSuffixes.includes(val)) { selectedSuffixes = selectedSuffixes.filter(s => s !== val); e.target.classList.remove('active'); }
-    else { selectedSuffixes.push(val); e.target.classList.add('active'); }
-    localStorage.setItem('selectedSuffixes', JSON.stringify(selectedSuffixes));
-  });
+  // Smart Prompt Ideas
+  if ($('promptIdeasGroup')) {
+    $('promptIdeasGroup').addEventListener('click', (e) => {
+      if (e.target.classList.contains('pill')) {
+        document.querySelectorAll('#promptIdeasGroup .pill').forEach(p => p.classList.remove('active'));
+        e.target.classList.add('active');
+        $('promptInstructions').value = e.target.dataset.value;
+        saveSettings();
+      }
+    });
+  }
 
   // Auto-save
   ['keywords','promptInstructions','batchSize','targetCount'].forEach(id => {
