@@ -18,7 +18,10 @@ let currentProfile = null;
 let isRunning = false;
 let foundDomains   = [];
 let checkedDomains = [];
-
+let sessionLogs    = [];
+let selectedSuffixes = [];
+let totalCheckedGlobal = 0;
+let totalFoundGlobal   = 0;
 
 const $ = id => document.getElementById(id);
 
@@ -66,11 +69,20 @@ async function onSessionReady(session) {
 function loadSavedSettings() {
   if (localStorage.getItem('keywords'))           $('keywords').value           = localStorage.getItem('keywords');
   if (localStorage.getItem('promptInstructions')) $('promptInstructions').value = localStorage.getItem('promptInstructions');
-  if (localStorage.getItem('batchSize'))          $('batchSize').value          = localStorage.getItem('batchSize') || 15;
-    if (localStorage.getItem('targetCount')) {
-      $('targetCount').value = localStorage.getItem('targetCount');
-      $('targetDisplay').textContent = localStorage.getItem('targetCount');
+  if (localStorage.getItem('batchSize'))          $('batchSize').value          = localStorage.getItem('batchSize');
+  if (localStorage.getItem('targetCount')) {
+    $('targetCount').value = localStorage.getItem('targetCount');
+    $('targetDisplay').textContent = localStorage.getItem('targetCount');
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem('selectedSuffixes'));
+    if (Array.isArray(saved)) {
+      selectedSuffixes = saved;
+      document.querySelectorAll('.pill').forEach(p => {
+        if (selectedSuffixes.includes(p.dataset.value)) p.classList.add('active');
+      });
     }
+  } catch (_) {}
 }
 
 function saveSettings() {
@@ -159,8 +171,8 @@ function setRunning(mode) {
   const off = isRunning;
   ['keywords','promptInstructions','batchSize','targetCount','manualDomains']
     .forEach(id => { if ($(id)) $(id).disabled = off; });
-  const pGroup = $('promptIdeasGroup');
-  if (pGroup) { pGroup.style.pointerEvents = off ? 'none' : 'auto'; pGroup.style.opacity = off ? '0.6' : '1'; }
+  const sg = $('suffixGroup');
+  if (sg) { sg.style.pointerEvents = off ? 'none' : 'auto'; sg.style.opacity = off ? '0.6' : '1'; }
 
   if (mode === 'ai') {
     $('startAiBtn').style.display   = 'none';
@@ -287,41 +299,6 @@ async function startAiHunt() {
   await runAiLoop();
 }
 
-const SEARCH_QUOTES = [
-  "A great domain is your digital real estate.",
-  "Your brand is your promise to your customer.",
-  "The right name is the beginning of a great story.",
-  "Domains are the bedrock of the internet.",
-  "Good names are taken, great names are created.",
-  "Your domain name is your first impression.",
-  "A memorable name is worth a thousand marketing dollars.",
-  "Keep it short, make it memorable.",
-  "A strong brand creates trust.",
-  "Invest in your name; it's the only thing that lasts.",
-  "The best domains are easy to say and easy to spell.",
-  "Your name is your digital identity.",
-  "Branding is what people say about you when you're not in the room.",
-  "A single word can define a generation.",
-  "Own your niche, own your name.",
-  "Don't compromise on your cornerstone.",
-  "A premium domain signals authority.",
-  "First they see the name, then they see the vision.",
-  "Simple, bold, and definitive.",
-  "Your domain is the front door to your business.",
-  "Great brands communicate instantly.",
-  "Think global, name wisely.",
-  "Clarity beats cleverness in naming.",
-  "The internet isn't written in ink, but domains are permanent.",
-  "A good name opens doors.",
-  "Your digital presence starts here.",
-  "Find a name that scales with your ambition.",
-  "The right domain sparks curiosity.",
-  "Your brand is an asset, treat it like one.",
-  "Visionaries secure their digital footprint.",
-  "A domain isn't just an address, it's a statement.",
-  "Make it stick in their minds."
-];
-
 async function runAiLoop() {
   if (!isRunning) return;
 
@@ -330,13 +307,13 @@ async function runAiLoop() {
   const batchSize = Math.min(parseInt($('batchSize').value) || 15, planMaxDomains === Infinity ? 100 : planMaxDomains);
 
   try {
-    const randomQuote = SEARCH_QUOTES[Math.floor(Math.random() * SEARCH_QUOTES.length)];
-    updateStatus(randomQuote);
+    updateStatus('Brainstorming unique ideas...');
 
     const domains = await generateDomains({
       keywords:           $('keywords').value,
       batchSize,
       promptInstructions: $('promptInstructions').value,
+      selectedSuffixes,
       checkedDomains:     checkedDomains.slice(-50),
     }, currentSession);
 
@@ -587,17 +564,14 @@ function bindEvents() {
   $('startManualBtn').addEventListener('click', startManualCheck);
   $('stopManualBtn').addEventListener('click',  () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
 
-  // Smart Prompt Ideas
-  if ($('promptIdeasGroup')) {
-    $('promptIdeasGroup').addEventListener('click', (e) => {
-      if (e.target.classList.contains('pill')) {
-        document.querySelectorAll('#promptIdeasGroup .pill').forEach(p => p.classList.remove('active'));
-        e.target.classList.add('active');
-        $('promptInstructions').value = e.target.dataset.value;
-        saveSettings();
-      }
-    });
-  }
+  // Suffix pills
+  $('suffixGroup').addEventListener('click', e => {
+    if (!e.target.classList.contains('pill')) return;
+    const val = e.target.dataset.value;
+    if (selectedSuffixes.includes(val)) { selectedSuffixes = selectedSuffixes.filter(s => s !== val); e.target.classList.remove('active'); }
+    else { selectedSuffixes.push(val); e.target.classList.add('active'); }
+    localStorage.setItem('selectedSuffixes', JSON.stringify(selectedSuffixes));
+  });
 
   // Auto-save
   ['keywords','promptInstructions','batchSize','targetCount'].forEach(id => {
