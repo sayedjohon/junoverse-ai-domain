@@ -299,6 +299,41 @@ async function startAiHunt() {
   await runAiLoop();
 }
 
+const SEARCH_QUOTES = [
+  "A great domain is your digital real estate.",
+  "Your brand is your promise to your customer.",
+  "The right name is the beginning of a great story.",
+  "Domains are the bedrock of the internet.",
+  "Good names are taken, great names are created.",
+  "Your domain name is your first impression.",
+  "A memorable name is worth a thousand marketing dollars.",
+  "Keep it short, make it memorable.",
+  "A strong brand creates trust.",
+  "Invest in your name; it's the only thing that lasts.",
+  "The best domains are easy to say and easy to spell.",
+  "Your name is your digital identity.",
+  "Branding is what people say about you when you're not in the room.",
+  "A single word can define a generation.",
+  "Own your niche, own your name.",
+  "Don't compromise on your cornerstone.",
+  "A premium domain signals authority.",
+  "First they see the name, then they see the vision.",
+  "Simple, bold, and definitive.",
+  "Your domain is the front door to your business.",
+  "Great brands communicate instantly.",
+  "Think global, name wisely.",
+  "Clarity beats cleverness in naming.",
+  "The internet isn't written in ink, but domains are permanent.",
+  "A good name opens doors.",
+  "Your digital presence starts here.",
+  "Find a name that scales with your ambition.",
+  "The right domain sparks curiosity.",
+  "Your brand is an asset, treat it like one.",
+  "Visionaries secure their digital footprint.",
+  "A domain isn't just an address, it's a statement.",
+  "Make it stick in their minds."
+];
+
 async function runAiLoop() {
   if (!isRunning) return;
 
@@ -307,7 +342,8 @@ async function runAiLoop() {
   const batchSize = Math.min(parseInt($('batchSize').value) || 15, planMaxDomains === Infinity ? 100 : planMaxDomains);
 
   try {
-    updateStatus('Asking Gemini AI for domain ideas...');
+    const randomQuote = SEARCH_QUOTES[Math.floor(Math.random() * SEARCH_QUOTES.length)];
+    updateStatus(randomQuote);
 
     const domains = await generateDomains({
       keywords:           $('keywords').value,
