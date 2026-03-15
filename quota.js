@@ -6,47 +6,47 @@ import { supabase } from './lib/supabase.js';
 export const PLANS = {
   guest: {
     label: 'Guest',        monthly: false,
-    ai_per_month: 1,       ai_max: 30,
-    manual_per_month: 1,   manual_max: 40,
+    ai_per_month: 0,       ai_max: 0,      target_max: 0,
+    manual_per_month: Infinity,   manual_max: 1,
   },
   free: {
     label: 'Free',         monthly: false,
-    ai_per_month: 3,       ai_max: 30,
-    manual_per_month: 3,   manual_max: 40,
+    ai_per_month: 3,       ai_max: 15,     target_max: 5,
+    manual_per_month: Infinity,  manual_max: 3,
   },
   starter: {
     label: 'Starter',      monthly: true,
     price: 9,              period: '2 months',
-    ai_per_month: 5,       ai_max: 60,
+    ai_per_month: 5,       ai_max: 60,     target_max: 10,
     manual_per_month: 10,  manual_max: 60,
   },
   hustler: {
     label: 'Hustler',      monthly: true,
     price: 29,             period: '/year',
-    ai_per_month: 10,      ai_max: 100,
+    ai_per_month: 10,      ai_max: 100,    target_max: 20,
     manual_per_month: 20,  manual_max: 100,
   },
   builder: {
     label: 'Builder',      monthly: true,   popular: true,
     price: 59,             period: '/year',
-    ai_per_month: 30,      ai_max: 100,
+    ai_per_month: 30,      ai_max: 50,      target_max: 20,
     manual_per_month: Infinity, manual_max: 100,
   },
   pro: {
     label: 'Pro',          monthly: true,
     price: 99,             period: '/year',
-    ai_per_month: 80,      ai_max: 100,
-    manual_per_month: Infinity, manual_max: 100,
+    ai_per_month: 100,     ai_max: 150,     target_max: 100,
+    manual_per_month: Infinity, manual_max: 500,
   },
   agency: {
     label: 'Agency',       monthly: true,
     price: 199,            period: '/year',
-    ai_per_month: 200,     ai_max: 100,
+    ai_per_month: 250,     ai_max: 300,     target_max: Infinity,
     manual_per_month: Infinity, manual_max: Infinity,
   },
   enterprise: {
     label: 'Enterprise',   monthly: false,
-    ai_per_month: Infinity, ai_max: Infinity,
+    ai_per_month: Infinity, ai_max: Infinity, target_max: Infinity,
     manual_per_month: Infinity, manual_max: Infinity,
   },
 };

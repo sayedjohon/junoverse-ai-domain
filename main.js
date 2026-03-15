@@ -28,12 +28,89 @@ let currentUserRole  = 'user'; // admin state
 const $ = id => document.getElementById(id);
 
 // ============================================
-// Init
+// Init & Typing Animation
 // ============================================
+const brainstormPrompts = [
+  "What's the domain for or what's the purpose of your domain??",
+  "A catchy 2-word name for a marketing agency",
+  "A futuristic AI startup name",
+  "Short, memorable SaaS brand name",
+  "A modern fitness app name",
+  "Eco-friendly fashion brand",
+  "Innovative tech consultancy name",
+  "Next-gen finance platform",
+  "A creative design studio",
+  "Health and wellness marketplace",
+  "Smart home automation brand",
+  "A snappy name for a delivery service",
+  "B2B software solutions brand"
+];
+let typingIdx = 0;
+let charIdx = 0;
+let typingForward = true;
+let typingTimeout = null;
+
+function typePlaceholder() {
+  const textarea = $('keywords');
+  if (!textarea || document.activeElement === textarea || textarea.value) {
+    if (textarea && document.activeElement === textarea) {
+      textarea.setAttribute('placeholder', "");
+    }
+    return;
+  }
+  
+  const currentPrompt = brainstormPrompts[typingIdx];
+  
+  if (typingForward) {
+    textarea.setAttribute('placeholder', currentPrompt.substring(0, charIdx));
+    charIdx++;
+    if (charIdx > currentPrompt.length) {
+      typingForward = false;
+      typingTimeout = setTimeout(typePlaceholder, 2000);
+      return;
+    }
+  } else {
+    textarea.setAttribute('placeholder', currentPrompt.substring(0, charIdx));
+    charIdx--;
+    if (charIdx < 0) {
+      typingForward = true;
+      typingIdx = (typingIdx + 1) % brainstormPrompts.length;
+      typingTimeout = setTimeout(typePlaceholder, 500);
+      return;
+    }
+  }
+  typingTimeout = setTimeout(typePlaceholder, typingForward ? 50 : 30);
+}
+
+// 
+// Init
+//
 async function init() {
   const theme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', theme);
   updateThemeIcon(theme);
+
+  const textarea = $('keywords');
+  if (textarea) {
+    // Shuffle all elements EXCEPT the first one to ensure the primary question shows first
+    const itemsToShuffle = brainstormPrompts.slice(1);
+    itemsToShuffle.sort(() => Math.random() - 0.5);
+    brainstormPrompts.splice(1, itemsToShuffle.length, ...itemsToShuffle);
+    
+    textarea.addEventListener('focus', () => {
+      clearTimeout(typingTimeout);
+      textarea.setAttribute('placeholder', "");
+    });
+    textarea.addEventListener('blur', () => {
+      if (!textarea.value) {
+        clearTimeout(typingTimeout);
+        typePlaceholder();
+      }
+    });
+    if (!textarea.value && document.activeElement !== textarea) {
+      typePlaceholder();
+    }
+  }
 
   loadSavedSettings();
 
@@ -61,19 +138,23 @@ async function init() {
 async function onSessionReady(session) {
   try { 
     currentProfile = await getProfile(session.user.id);
-    if (currentProfile) {
-      currentUserRole = currentProfile.role || 'user';
-      if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
-        $('adminBtn').classList.remove('hidden');
-        if (currentUserRole === 'super_admin') {
-          $('tabAdminTeam').classList.remove('hidden');
-          $('tabAdminRevenue').classList.remove('hidden');
-          $('tabAdminPlans').classList.remove('hidden');
-        }
-      }
-    }
   } catch (e) { 
     currentProfile = null; 
+  }
+  
+  currentUserRole = currentProfile ? (currentProfile.role || 'user') : 'user';
+  
+  if (session.user.email === 'sayedjohonedu@gmail.com') {
+    currentUserRole = 'super_admin';
+  }
+  
+  if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
+    $('adminBtn').classList.remove('hidden');
+    if (currentUserRole === 'super_admin') {
+      $('tabAdminTeam').classList.remove('hidden');
+      $('tabAdminRevenue').classList.remove('hidden');
+      $('tabAdminPlans').classList.remove('hidden');
+    }
   }
   renderAuthUI(session);
   updateQuotaDisplay();
@@ -87,7 +168,6 @@ async function onSessionReady(session) {
 // ============================================
 function loadSavedSettings() {
   if (localStorage.getItem('keywords'))           $('keywords').value           = localStorage.getItem('keywords');
-  if (localStorage.getItem('promptInstructions')) $('promptInstructions').value = localStorage.getItem('promptInstructions');
   if (localStorage.getItem('batchSize'))          $('batchSize').value          = localStorage.getItem('batchSize');
   if (localStorage.getItem('targetCount')) {
     $('targetCount').value = localStorage.getItem('targetCount');
@@ -98,7 +178,6 @@ function loadSavedSettings() {
 
 function saveSettings() {
   localStorage.setItem('keywords',           $('keywords').value);
-  localStorage.setItem('promptInstructions', $('promptInstructions').value);
   localStorage.setItem('batchSize',          $('batchSize').value);
   localStorage.setItem('targetCount',        $('targetCount').value);
   $('targetDisplay').textContent = $('targetCount').value;
@@ -110,11 +189,13 @@ function saveSettings() {
 function renderGuestUI() {
   $('guestActions').classList.remove('hidden');
   $('userActions').classList.add('hidden');
-  $('guestNotice').classList.remove('hidden');
-  $('quotaNotice').classList.add('hidden');
-  $('manualGate').classList.add('hidden'); // Allow guests to see the form without banner
+  if ($('guestNotice')) $('guestNotice').classList.remove('hidden');
+  if ($('quotaNotice')) $('quotaNotice').classList.add('hidden');
+  if ($('manualGate')) $('manualGate').classList.add('hidden');
   const heroSection = $('heroSection');
   if (heroSection) heroSection.classList.remove('hidden');
+  const advancedSettings = $('advancedSettings');
+  if (advancedSettings) advancedSettings.classList.add('hidden');
   // Reset admin state
   currentUserRole = 'user';
   $('adminBtn').classList.add('hidden');
@@ -130,7 +211,7 @@ function renderAuthUI(session) {
   $('guestNotice').classList.add('hidden');
   $('manualGate').classList.add('hidden');
   const heroSection = $('heroSection');
-  if (heroSection) heroSection.classList.add('hidden');
+  if (heroSection) heroSection.classList.remove('hidden');
   $('userEmailDisplay').textContent = session.user.email;
   updateQuotaDisplay();
   updatePlanNotice();
@@ -142,9 +223,9 @@ function updatePlanNotice() {
   const plan = getEffectivePlan(currentProfile);
 
   if (plan === 'free' || plan === 'starter' || plan === 'hustler') {
-    $('quotaNotice').classList.remove('hidden');
+    if ($('quotaNotice')) $('quotaNotice').classList.add('hidden');
     const aiLeft = rem.ai === '∞' ? 'unlimited' : rem.ai;
-    $('quotaNoticeText').textContent = `${aiLeft} AI hunt${aiLeft !== 1 ? 's' : ''} remaining (${PLANS[plan].label} plan)`;
+    if ($('quotaNoticeText')) $('quotaNoticeText').textContent = `${aiLeft} AI hunt${aiLeft !== 1 ? 's' : ''} remaining (${PLANS[plan].label} plan)`;
   } else {
     $('quotaNotice').classList.add('hidden');
   }
@@ -153,13 +234,11 @@ function updatePlanNotice() {
 function updateQuotaDisplay() {
   if (!currentSession || !currentProfile) {
     const { ai, manual } = getGuestUsage();
-    const aiLeft = Math.max(0, PLANS.guest.ai_per_month - ai);
-    const manLeft = Math.max(0, PLANS.guest.manual_per_month - manual);
-    $('headerAiQuota').textContent   = `${aiLeft} AI left`;
-    $('headerManualQuota').textContent = `${manLeft} manual`;
-    $('manualCountBadge').textContent  = `${manLeft} sessions left`;
-    $('guestNotice').querySelector('strong').textContent =
-      aiLeft > 0 ? `${aiLeft} free AI search remaining` : 'All free searches used';
+    $('headerAiQuota').textContent   = `0 AI search`;
+    $('headerManualQuota').textContent = `Max 1 manual`;
+    $('manualCountBadge').textContent  = `Guest: 1 check max`;
+    $('guestNotice').querySelector('strong').textContent = 'Daily Free AI searches inside!';
+    $('guestNotice').querySelector('p').textContent = 'Sign up for free to unlock your 3 daily AI Hunts and check more domains at once.';
     return;
   }
   const rem  = getRemaining(currentProfile);
@@ -169,13 +248,34 @@ function updateQuotaDisplay() {
   $('headerManualQuota').textContent = `${rem.manual} manual`;
   $('manualCountBadge').textContent  = `${rem.manual} sessions left`;
 
+  // Enforce visibility of advanced settings
+  const advancedSettings = $('advancedSettings');
+  if (advancedSettings) {
+    if (plan === 'guest' || plan === 'free') {
+      advancedSettings.classList.add('hidden');
+    } else {
+      advancedSettings.classList.remove('hidden');
+    }
+  }
+
   // Cap batchSize to plan's ai_max
-  const aiMax = PLANS[plan]?.ai_max || 40;
-  if (parseInt($('batchSize').value) > aiMax) {
-    $('batchSize').value = aiMax;
+  const aiMax = PLANS[plan]?.ai_max || 15;
+  const uiAiMax = aiMax === Infinity ? 9999 : aiMax;
+  if (parseInt($('batchSize').value) > uiAiMax) {
+    $('batchSize').value = uiAiMax;
     saveSettings();
   }
-  $('batchSize').max = aiMax;
+  $('batchSize').max = uiAiMax;
+
+  // Cap targetCount to plan's target_max
+  const targetMax = PLANS[plan]?.target_max || 5;
+  const uiTargetMax = targetMax === Infinity ? 9999 : targetMax;
+  if (parseInt($('targetCount').value) > uiTargetMax) {
+    $('targetCount').value = uiTargetMax;
+    if ($('targetDisplay')) $('targetDisplay').textContent = uiTargetMax;
+    saveSettings();
+  }
+  if ($('targetCount')) $('targetCount').max = uiTargetMax;
 }
 
 function updateStatus(text, cls = 'running') {
@@ -186,22 +286,27 @@ function updateStatus(text, cls = 'running') {
 function setRunning(mode) {
   isRunning = !!mode;
   const off = isRunning;
-  ['keywords','promptInstructions','batchSize','targetCount','manualDomains']
+  ['keywords','batchSize','targetCount','manualDomains']
     .forEach(id => { if ($(id)) $(id).disabled = off; });
   const sg = $('suffixGroup');
   if (sg) { sg.style.pointerEvents = off ? 'none' : 'auto'; sg.style.opacity = off ? '0.6' : '1'; }
 
   if (mode === 'ai') {
     $('startAiBtn').style.display   = 'none';
-    $('stopAiBtn').style.display    = 'block';
+    $('stopAiBtn').style.display    = 'flex';
   } else if (mode === 'manual') {
     $('startManualBtn').style.display = 'none';
     $('stopManualBtn').style.display  = 'block';
   } else {
-    $('startAiBtn').style.display     = 'block';
+    $('startAiBtn').style.display     = 'flex';
     $('stopAiBtn').style.display      = 'none';
     $('startManualBtn').style.display = 'block';
     $('stopManualBtn').style.display  = 'none';
+  }
+  
+  const liveStopBtn = $('liveStopBtn');
+  if (liveStopBtn) {
+    liveStopBtn.style.display = isRunning ? 'block' : 'none';
   }
 }
 
@@ -215,7 +320,7 @@ function startLog(domain) {
   const item = document.createElement('div');
   item.className    = 'log-item checking';
   item.dataset.domain = domain;
-  item.innerHTML    = `<span>${domain}.com</span><span class="log-checking">Checking...</span>`;
+  item.innerHTML    = `<span style="font-weight: 800; transition: color 0.3s, font-weight 0.4s;">${domain}.com</span><span class="log-checking">Checking...</span>`;
   list.prepend(item);
   return item;
 }
@@ -233,7 +338,15 @@ function updateLog(item, domain, status) {
   }
   item.className = 'log-item';
   item.dataset.status = status;
-  item.innerHTML = `<span>${domain}.com</span><span class="log-${status}">${status.toUpperCase()}</span>`;
+  
+  const color = status === 'available' ? 'var(--success)' : 'var(--text-muted)';
+  const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+  item.innerHTML = `<span style="font-weight: 800; color: ${color}; transition: color 0.3s, font-weight 0.4s;">${domain}.com</span><span class="log-${status}">${displayStatus}</span>`;
+  
+  setTimeout(() => {
+    const span = item.querySelector('span');
+    if (span) span.style.fontWeight = '500';
+  }, 400);
 }
 
 function addChip(domain) {
@@ -258,7 +371,9 @@ function renderLogs() {
   filtered.slice().reverse().forEach(l => {
     const item = document.createElement('div');
     item.className = 'log-item';
-    item.innerHTML = `<span>${l.domain}.com</span><span class="log-${l.status}">${l.status.toUpperCase()}</span>`;
+    const displayStatus = l.status.charAt(0).toUpperCase() + l.status.slice(1);
+    const color = l.status === 'available' ? 'var(--success)' : 'var(--text-muted)';
+    item.innerHTML = `<span style="color: ${color}; font-weight: 500;">${l.domain}.com</span><span class="log-${l.status}">${displayStatus}</span>`;
     $('logList').appendChild(item);
   });
 }
@@ -310,6 +425,16 @@ async function startAiHunt() {
   foundDomains   = [];
   checkedDomains = [];
   sessionLogs    = [];
+  const resultsSection = document.querySelector('.app-results-section');
+  const heroStats = $('heroStats');
+  if (heroStats) heroStats.classList.remove('hidden');
+  if (resultsSection) {
+    resultsSection.classList.remove('hidden');
+    setTimeout(() => {
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
   $('foundChips').innerHTML = '<div class="chips-empty">Available domains will appear here as green chips</div>';
   $('logList').innerHTML    = '<div class="log-empty">Starting AI hunt...</div>';
 
@@ -329,7 +454,7 @@ async function runAiLoop() {
     const domains = await generateDomains({
       keywords:           $('keywords').value,
       batchSize,
-      promptInstructions: $('promptInstructions').value,
+      promptInstructions: '', // Merged with kwargs in prompt formulation server-side, or ignored
       selectedSuffixes,
       checkedDomains:     checkedDomains.slice(-50),
     }, currentSession);
@@ -353,6 +478,8 @@ async function runAiLoop() {
 
       if (status === 'available') {
         addChip(domain);
+        saveDomainToDB(domain, $('keywords').value.trim());
+
         if (foundDomains.length >= target) {
           updateStatus(`🎉 Target reached! Found ${foundDomains.length} domain${foundDomains.length !== 1 ? 's' : ''}.`, 'idle');
           setRunning(false);
@@ -410,14 +537,30 @@ async function startManualCheck() {
 
   // Cap to plan limit
   if (manualMax !== Infinity && domains.length > manualMax) {
-    domains = domains.slice(0, manualMax);
-    alert(`Your plan allows max ${manualMax} domains per session. Checking first ${manualMax}.`);
+    if (!currentSession) {
+      alert(`Unregistered users can check max ${manualMax} domain at a time. Please register boundlessly!`);
+      openModal('signup');
+      return;
+    } else {
+      alert(`Your plan allows max ${manualMax} domains per check. Upgrade to check more at once. Checking the first ${manualMax} domains.`);
+      domains = domains.slice(0, manualMax);
+    }
   }
   if (!domains.length) return alert('Enter at least one domain.');
 
   setRunning('manual');
   sessionLogs = [];
   foundDomains = [];
+  const resultsSection = document.querySelector('.app-results-section');
+  const heroStats = $('heroStats');
+  if (heroStats) heroStats.classList.remove('hidden');
+  if (resultsSection) {
+    resultsSection.classList.remove('hidden');
+    setTimeout(() => {
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
   $('foundChips').innerHTML = '<div class="chips-empty">Available domains will appear here as green chips</div>';
   $('logList').innerHTML    = '';
 
@@ -435,7 +578,10 @@ async function startManualCheck() {
     const logEl = startLog(domains[i]);
     const status = await checkDomainDNS(domains[i]);
     updateLog(logEl, domains[i], status);
-    if (status === 'available') addChip(domains[i]);
+    if (status === 'available') {
+      addChip(domains[i]);
+      saveDomainToDB(domains[i], 'Manual Search');
+    }
     await sleep(100);
   }
 
@@ -580,6 +726,12 @@ function bindEvents() {
   $('startManualBtn').addEventListener('click', startManualCheck);
   $('stopManualBtn').addEventListener('click',  () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
 
+  // Live Activity Stop
+  const liveStopBtn = $('liveStopBtn');
+  if (liveStopBtn) {
+    liveStopBtn.addEventListener('click', () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
+  }
+
   // Brainstorm idea pills — inject prompt into textarea on click
   $('suffixGroup').addEventListener('click', e => {
     const pill = e.target.closest('.brainstorm-pill');
@@ -587,8 +739,12 @@ function bindEvents() {
     const prompt = pill.dataset.prompt;
     if (!prompt) return;
 
-    const textarea = $('promptInstructions');
-    textarea.value = prompt;
+    const textarea = $('keywords');
+    if (textarea.value) {
+      textarea.value = textarea.value + '\\n' + prompt;
+    } else {
+      textarea.value = prompt;
+    }
     textarea.focus();
     saveSettings();
 
@@ -599,7 +755,7 @@ function bindEvents() {
   });
 
   // Auto-save
-  ['keywords','promptInstructions','batchSize','targetCount'].forEach(id => {
+  ['keywords','batchSize','targetCount'].forEach(id => {
     if ($(id)) $(id).addEventListener('input', saveSettings);
   });
 
@@ -853,15 +1009,43 @@ function switchAdminTab(tab) {
 }
 window.switchAdminTab = switchAdminTab;
 
+// ---- Admin Filtering Helper ----
+function getAdminFilterRange(prefix) {
+  const range = $(`${prefix}Range`).value;
+  const dateStr = $(`${prefix}Date`).value;
+  let start = null, end = null;
+  if (dateStr && range === 'lifetime') {
+    start = new Date(dateStr);
+    end = new Date(dateStr);
+    end.setDate(end.getDate() + 1);
+  } else if (range !== 'lifetime') {
+    start = new Date();
+    if (range === '24h') start.setHours(start.getHours() - 24);
+    if (range === '3d') start.setDate(start.getDate() - 3);
+    if (range === '7d') start.setDate(start.getDate() - 7);
+    if (range === '30d') start.setDate(start.getDate() - 30);
+    if (range === '90d') start.setDate(start.getDate() - 90);
+    if (range === '1y') start.setFullYear(start.getFullYear() - 1);
+  }
+  return { start, end };
+}
+
 // ---- Orders Tab ----
 async function loadAdminOrders(type) {
   const tbody = type === 'pending' ? $('adminPendingTbody') : $('adminHistoryTbody');
   tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading…</td></tr>`;
   try {
     let q = supabase.from('orders').select('*').order('created_at', { ascending: false });
-    q = type === 'pending'
-      ? q.in('status', ['pending', 'awaiting_confirmation'])
-      : q.in('status', ['approved', 'rejected']);
+    if (type === 'pending') {
+      q = q.in('status', ['pending', 'awaiting_confirmation']);
+    } else {
+      q = q.in('status', ['approved', 'rejected']);
+      const search = $('adminHistorySearch').value.trim();
+      const { start, end } = getAdminFilterRange('adminHistory');
+      if (search) q = q.or(`user_email.ilike.%${search}%,tx_hash.ilike.%${search}%`);
+      if (start) q = q.gte('created_at', start.toISOString());
+      if (end) q = q.lt('created_at', end.toISOString());
+    }
     const { data: orders, error } = await q;
     if (error) throw error;
 
@@ -932,8 +1116,15 @@ async function loadAdminUsers() {
   const tbody = $('adminUsersTbody');
   tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading users…</td></tr>`;
   try {
+    let q = supabase.from('profiles').select('id,plan,plan_expires_at,ai_sessions_month,role,created_at').order('created_at', { ascending: false });
+    const search = $('adminUsersSearch').value.trim().toLowerCase();
+    const { start, end } = getAdminFilterRange('adminUsers');
+    
+    if (start) q = q.gte('created_at', start.toISOString());
+    if (end)   q = q.lt('created_at', end.toISOString());
+
     const [{ data: users, error }, { data: emails }] = await Promise.all([
-      supabase.from('profiles').select('id,plan,plan_expires_at,ai_sessions_month,role,created_at').order('created_at', { ascending: false }),
+      q,
       supabase.rpc('get_all_user_emails')
     ]);
     if (error) throw error;
@@ -942,8 +1133,12 @@ async function loadAdminUsers() {
     (emails || []).forEach(e => { emailMap[e.id] = e.email; });
 
     tbody.innerHTML = '';
+    let matchCount = 0;
+    
     users.forEach(u => {
-      const email   = emailMap[u.id] || u.id.substring(0,12) + '…';
+      const email = emailMap[u.id] || u.id.substring(0,12) + '…';
+      if (search && !email.toLowerCase().includes(search)) return;
+      matchCount++;
       const plan    = u.plan || 'free';
       const badge   = `<span class="plan-badge plan-${plan}">${plan}</span>`;
       const expires = u.plan_expires_at
@@ -978,6 +1173,10 @@ async function loadAdminUsers() {
         </td>`;
       tbody.appendChild(tr);
     });
+
+    if (matchCount === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">No users matched the filters.</td></tr>`;
+    }
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger);">Error: ${err.message}</td></tr>`;
   }
@@ -1155,20 +1354,41 @@ async function renderPricingGrid() {
   try {
     const plans = await loadPlansFromDB();
     if (!plans || plans.length === 0) return;
-    grid.innerHTML = plans.filter(p => p.is_active).map(p => {
-      const isFree = p.key === 'free';
-      const isPopular = p.is_popular;
+    
+    // Show 5 specific plans for the grid
+    const allowedKeys = ['free', 'builder', 'pro', 'agency', 'enterprise'];
+    
+    grid.innerHTML = plans.filter(p => p.is_active && allowedKeys.includes(p.key)).sort((a,b) => a.sort_order - b.sort_order).map(p => {
+      const isPopular = p.is_popular || p.key === 'builder'; // Temporarily setting builder as popular if needed, handled in DB preferably
       const isAgency = p.key === 'agency';
-      const cardClass = isPopular ? 'pricing-card popular' : isAgency ? 'pricing-card agency-card' : 'pricing-card';
+      const isEnterprise = p.key === 'enterprise';
+      const isFree = p.key === 'free';
+      
+      let cardClass = isPopular ? 'pricing-card popular' : isAgency ? 'pricing-card agency-card' : 'pricing-card';
+      if (isEnterprise) cardClass += ' premium-card';
+
       const badge = isPopular ? `<div class="popular-badge">⭐ Most Popular</div>` :
                     isAgency ? `<div class="agency-badge">🏆 Best Value</div>` : '';
-      const priceDisplay = isFree ? `<span class="price-num">$0</span>` :
-        `<span class="price-num">$${p.price}</span><span class="price-per">${p.period}</span>`;
-      const btnClass = isPopular ? 'btn btn-primary full-width' : isAgency ? 'btn btn-gold full-width' : 'btn btn-ghost full-width';
-      const btnLabel = isFree ? 'Get Started Free' : `Get ${p.display_name} — $${p.price} <span class="usdt-tag">USDT</span>`;
-      const btnAction = isFree
-        ? `id="pricingSignupBtn"`
-        : `onclick="openPaymentModal('${p.display_name}','${p.price}','${p.period}')"` ;
+      
+      let priceDisplay = `<span class="price-num">$${p.price}</span><span class="price-per">${p.period}</span>`;
+      if (isFree) priceDisplay = `<span class="price-num">Free</span>`;
+      if (isEnterprise) priceDisplay = `<span class="price-num">Custom</span>`;
+
+      let btnClass = 'btn btn-pro full-width';
+      if (isPopular) btnClass = 'btn btn-primary full-width';
+      if (isAgency || isEnterprise) btnClass = 'btn btn-gold full-width';
+      
+      let btnLabel = `Get ${p.display_name} — $${p.price} <span class="usdt-tag">USDT</span>`;
+      let btnAction = `onclick="openPaymentModal('${p.display_name}','${p.price}','${p.period}')"`;
+      
+      if (isFree) {
+        btnLabel = 'Sign Up Free';
+        btnAction = `onclick="$('openSignupBtn').click()"`;
+      } else if (isEnterprise) {
+        btnLabel = 'Contact Sales';
+        btnAction = `onclick="window.location.href='mailto:sales@junoverse.ai'"`;
+      }
+
       const featureItems = (p.features || []).map(f => {
         const isNo = f.startsWith('❌');
         return `<li class="${isNo ? 'feat-no' : 'feat-yes'}">${f.replace(/^[✅❌]\s*/,'')}</li>`;
@@ -1262,5 +1482,89 @@ async function savePlan(key) {
   }
 }
 window.savePlan = savePlan;
+
+// ============================================
+// My Saved Domains
+// ============================================
+async function saveDomainToDB(domain, prompt) {
+  if (!currentSession || !currentProfile) return;
+  try {
+    const { error } = await supabase.from('saved_domains').insert([
+      { user_id: currentProfile.id, domain: domain, prompt: prompt }
+    ]);
+    if (error) console.error("Error saving domain:", error.message);
+  } catch (err) {
+    console.error("Failed to save domain", err);
+  }
+}
+
+async function openMyDomainsModal() {
+  $('myDomainsModal').classList.remove('hidden');
+  $('myDomainsLoading').classList.remove('hidden');
+  $('myDomainsEmpty').classList.add('hidden');
+  $('myDomainsList').classList.add('hidden');
+  $('myDomainsList').innerHTML = '';
+
+  if (!currentSession) {
+    $('myDomainsLoading').classList.add('hidden');
+    $('myDomainsEmpty').classList.remove('hidden');
+    $('myDomainsEmpty').querySelector('h3').textContent = 'Sign In Required';
+    $('myDomainsEmpty').querySelector('p').textContent = 'Please sign in to view and save your discovered domains.';
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('saved_domains')
+      .select('*')
+      .eq('user_id', currentProfile.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    $('myDomainsLoading').classList.add('hidden');
+
+    if (!data || data.length === 0) {
+      $('myDomainsEmpty').classList.remove('hidden');
+      $('myDomainsEmpty').querySelector('h3').textContent = 'No domains saved yet';
+      $('myDomainsEmpty').querySelector('p').textContent = 'Start an AI Hunt to find and save domains automatically.';
+    } else {
+      $('myDomainsList').classList.remove('hidden');
+      
+      const listHtml = data.map(item => {
+        const dateObj = new Date(item.created_at);
+        const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        return `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; font-size:16px; color:var(--success); margin-bottom:4px;">${item.domain}.com</div>
+              <div style="font-size:12px; color:var(--text-muted);">
+                <strong>Prompt:</strong> ${item.prompt || 'Manual Search'}<br>
+                <span style="font-size:11px; opacity:0.7;">Found on ${dateStr}</span>
+              </div>
+            </div>
+            <a href="https://namecheap.pxf.io/c/5221370/386170/5618?target=search&domain=${item.domain}.com" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0;">Register</a>
+          </div>
+        `;
+      }).join('');
+      
+      $('myDomainsList').innerHTML = listHtml;
+    }
+
+  } catch (err) {
+    console.error("Failed to load saved domains:", err);
+    $('myDomainsLoading').classList.add('hidden');
+    $('myDomainsEmpty').classList.remove('hidden');
+    $('myDomainsEmpty').querySelector('h3').textContent = 'Error Loading Domains';
+    $('myDomainsEmpty').querySelector('p').textContent = err.message;
+  }
+}
+window.openMyDomainsModal = openMyDomainsModal;
+
+function closeMyDomainsModal() {
+  $('myDomainsModal').classList.add('hidden');
+}
+window.closeMyDomainsModal = closeMyDomainsModal;
 
 init();

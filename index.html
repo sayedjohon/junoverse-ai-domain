@@ -7,7 +7,7 @@
   <meta name="description" content="AI-powered domain hunting by JunoverseAI. Find available .com domains instantly — no API key needed. Free to start.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -59,8 +59,8 @@
       <div id="signupPane" class="modal-pane hidden">
         <div class="perks-list">
           <div class="perk">✅ 3 AI Domain Hunts</div>
-          <div class="perk">✅ 200 Manual Checks</div>
-          <div class="perk">✅ No API Key Needed</div>
+          <div class="perk">✅ Limitless Manual Checks</div>
+          <div class="perk">✅ Process 3 Domains/time</div>
           <div class="perk">✅ Free Forever</div>
         </div>
         <div class="form-group">
@@ -111,6 +111,9 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="notifDot" class="notif-dot hidden"></span>
           </button>
+          <button class="icon-btn notif-btn" id="myDomainsBtn" onclick="openMyDomainsModal()" aria-label="My Saved Domains" title="My Saved Domains">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </button>
           <button class="btn btn-ghost btn-sm" id="signOutBtn">Sign Out</button>
         </div>
         <button id="themeToggleBtn" class="icon-btn" aria-label="Toggle theme">
@@ -132,13 +135,123 @@
     </div>
   </div>
 
-  <!-- Hero -->
-  <section id="heroSection" class="hero">
+  <!-- Hero & Main Search Section (Full Viewport Block) -->
+  <section id="heroSection" class="hero main-hero-block">
     <div class="hero-inner">
-      <div class="hero-badge">AI Domain Search</div>
-      <h2 class="hero-headline">Free AI Domain Search,<br><em>Find Available Names Instantly.</em></h2>
-      <p class="hero-sub">No credit card required. Just type your keywords and let our advanced AI do the hunting — verified live against the internet's DNS.</p>
-      <div class="hero-stats">
+      
+      <h1 class="seo-title">FREE AI DOMAIN SEARCH</h1>
+      
+      <!-- Notices Area -->
+      <div id="noticesArea">
+        <div id="guestNotice" class="plan-banner hidden" style="margin-bottom: 24px;">
+          <div>
+            <strong>1 free AI search remaining</strong>
+            <p>Sign up free to get more AI searches & manual checks!</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="signupFromNoticeBtn">Sign Up</button>
+        </div>
+        <div id="quotaNotice" class="plan-banner plan-banner-blue hidden" style="margin-bottom: 24px;">
+          <div>
+            <strong id="quotaNoticeText">3 AI searches remaining</strong>
+            <p>Upgrade for unlimited hunting</p>
+          </div>
+          <button class="btn btn-gold btn-sm" id="upgradeBtn">⚡ Premium $10</button>
+        </div>
+        <div id="manualGate" class="plan-banner hidden" style="margin-bottom: 24px;">
+          <div>
+            <strong>Sign in required</strong>
+            <p>Sign up free to unlock more manual domain checks!</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="signupFromManualBtn">Sign Up Free</button>
+        </div>
+      </div>
+
+      <!-- Segmented Tabs melted onto search box -->
+      <div class="segmented-control main-tabs-control">
+        <button class="segment active" data-target="ai-tab">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lightbulb"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+          AI Mode
+        </button>
+        <button class="segment" data-target="manual-tab">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Manual Mode
+        </button>
+      </div>
+
+      <!-- MAIN SEARCH BOX (Transparent wrapper) -->
+      <div class="search-box-container" style="position:relative; z-index: 1;">
+        
+        <!-- AI Tab View -->
+        <div id="ai-tab" class="tab active">
+
+          <div class="form-group main-textarea-group" style="position: relative;">
+            <label for="keywords" class="hidden-label">What's the purpose of your domain?</label>
+            <textarea id="keywords" class="giant-textarea" rows="3" placeholder="What's the domain for or what's the purpose of your domain?"></textarea>
+            
+            <button id="startAiBtn" class="btn inside-input-btn send-btn" aria-label="Start AI Hunt" title="Start AI Hunt">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            </button>
+            <button id="stopAiBtn" class="btn inside-input-btn stop-btn" aria-label="Stop Hunting" title="Stop Hunting" style="display:none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+            </button>
+          </div>
+          
+          <div class="form-group">
+            <label style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lightbulb"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+              Brainstorm Ideas
+              <span class="opt-badge">Click to use</span>
+            </label>
+            <div class="pill-group brainstorm-group" id="suffixGroup">
+              <button class="pill brainstorm-pill" data-prompt="Suggest 2-word domain names within 12 characters total, easy to spell and remember.">2-word, under 12 chars</button>
+              <button class="pill brainstorm-pill" data-prompt="Domain name must start with the word 'Gravity', e.g. GravityX, GravityAI, GravityHQ.">Starts with Gravity</button>
+              <button class="pill brainstorm-pill" data-prompt="Use a single punchy word that sounds like a tech startup — short, bold, brandable.">One-word tech startup</button>
+              <button class="pill brainstorm-pill" data-prompt="Combine two unrelated words to create a unique, catchy brand name like Snapchat or Dropbox.">Compound word fusion</button>
+              <button class="pill brainstorm-pill" data-prompt="Domain name should sound futuristic and AI-related, under 10 characters.">Futuristic AI name</button>
+              <button class="pill brainstorm-pill" data-prompt="Use nature-inspired words like elements, animals, or landscapes to create a calming, memorable brand.">Nature-inspired brand</button>
+              <button class="pill brainstorm-pill" data-prompt="Generate names with a 'Verb + Noun' pattern, like Shopify or Taskly — action-oriented and energetic.">Verb + Noun pattern</button>
+              <button class="pill brainstorm-pill" data-prompt="Use made-up or misspelled words that are still easy to pronounce — like Fiverr or Tumblr.">Intentional misspelling</button>
+              <button class="pill brainstorm-pill" data-prompt="Domain name should evoke speed, productivity, or getting things done — like Swiftly or Dashly.">Speed / productivity vibe</button>
+              <button class="pill brainstorm-pill" data-prompt="Create a brandable name using a short prefix such as 'Get', 'My', 'Try', or 'Use' followed by the keyword.">Prefix: Get, My, Try…</button>
+            </div>
+          </div>
+
+          <div id="advancedSettings" class="form-row search-settings">
+            <div class="form-group flex-1">
+              <label>Batch Size</label>
+              <input type="number" id="batchSize" value="15" min="5" max="50">
+            </div>
+            <div class="form-group flex-1">
+              <label>Target Found</label>
+              <input type="number" id="targetCount" value="5" min="1" max="50">
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Manual Tab View -->
+        <div id="manual-tab" class="tab">
+
+          <div class="form-group main-textarea-group" style="position: relative;">
+            <label for="manualDomains" class="hidden-label">Domains to Check</label>
+            <textarea id="manualDomains" class="giant-textarea" rows="6" placeholder="apple&#10;google&#10;shinynest&#10;swiftleaf&#10;&#10;One per line, no .com needed"></textarea>
+            
+            <button id="startManualBtn" class="btn inside-input-btn send-btn" aria-label="Check Domains" title="Check Domains">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            </button>
+            <button id="stopManualBtn" class="btn inside-input-btn stop-btn" aria-label="Stop Checking" title="Stop Checking" style="display:none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+            </button>
+          </div>
+          <div class="text-right" style="margin-top:-10px; margin-bottom:10px;">
+             <span class="opt-badge" id="manualCountBadge" style="font-size:12px; padding:4px 8px;">1 remaining</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Hero Stats moved below search area -->
+      <div id="heroStats" class="hero-stats mt-32 hidden">
         <div class="hero-stat">
           <strong id="totalChecked">0</strong>
           <span>Domains Checked</span>
@@ -154,149 +267,56 @@
           <span>Free to Start</span>
         </div>
       </div>
+
     </div>
   </section>
 
-  <!-- Main App -->
-  <main class="app-grid">
-
-    <!-- LEFT: Control Panel -->
-    <section class="control-panel">
-
-      <!-- Tabs -->
-      <div class="segmented-control">
-        <button class="segment active" data-target="ai-tab">🤖 AI Hunter</button>
-        <button class="segment" data-target="manual-tab">📋 Manual Check</button>
-      </div>
-
-      <!-- AI Tab -->
-      <div id="ai-tab" class="tab active">
-        <!-- Guest Notice -->
-        <div id="guestNotice" class="plan-banner">
-          <div>
-            <strong>1 free AI search remaining</strong>
-            <p>Sign up free to get more AI searches & manual checks!</p>
+  <!-- Results Section (Hidden by default until search starts) -->
+  <main class="app-results-section hidden" id="resultsSection">
+    <div class="results-inner">
+      <h3 class="section-title text-center">Live Results</h3>
+      
+      <div class="results-grid">
+        <!-- Status Card -->
+        <div class="card status-card glass-card">
+          <div class="status-row">
+            <div>
+              <div class="status-label">Status</div>
+              <div id="statusText" class="status-value idle">Idle</div>
+            </div>
+            <div class="text-right">
+              <div class="status-label">Available Found</div>
+              <div class="status-value"><span id="foundCount">0</span> / <span id="targetDisplay">5</span></div>
+            </div>
           </div>
-          <button class="btn btn-primary btn-sm" id="signupFromNoticeBtn">Sign Up</button>
+          <div id="foundChips" class="found-chips">
+            <div class="chips-empty">Available domains will appear here as green chips</div>
+          </div>
         </div>
 
-        <!-- Quota Notice for free users -->
-        <div id="quotaNotice" class="plan-banner plan-banner-blue hidden">
-          <div>
-            <strong id="quotaNoticeText">3 AI searches remaining</strong>
-            <p>Upgrade for unlimited hunting</p>
+        <!-- Activity Log -->
+        <div class="card log-card glass-card">
+          <div class="log-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h3 style="margin:0;">Live Activity</h3>
+              <button id="liveStopBtn" class="btn btn-ghost btn-sm" style="display:none; color:var(--danger); border:1px solid rgba(255,59,48,0.3); padding:4px 8px; font-size:11px;">⏹ Stop</button>
+            </div>
+            <div class="log-controls">
+              <select id="logFilter" class="select-minimal">
+                <option value="all">All</option>
+                <option value="available">✅ Available</option>
+                <option value="taken">❌ Taken</option>
+              </select>
+              <button id="downloadLogBtn" class="btn btn-ghost btn-sm">Export</button>
+            </div>
           </div>
-          <button class="btn btn-gold btn-sm" id="upgradeBtn">⚡ Premium $10</button>
-        </div>
-
-        <div class="card">
-          <div class="card-body">
-            <div class="form-group">
-              <label>Keywords</label>
-              <input type="text" id="keywords" placeholder="e.g. AI, productivity, SaaS, agency">
-            </div>
-            <div class="form-group">
-              <label>Prompt Instructions <span class="opt-badge">Optional</span></label>
-              <textarea id="promptInstructions" rows="2" placeholder="e.g. Make it sound futuristic and premium."></textarea>
-            </div>
-            <div class="form-group">
-              <label>💡 Brainstorm Ideas <span class="opt-badge">Click to use</span></label>
-              <div class="pill-group brainstorm-group" id="suffixGroup">
-                <button class="pill brainstorm-pill" data-prompt="Suggest 2-word domain names within 12 characters total, easy to spell and remember.">2-word, under 12 chars</button>
-                <button class="pill brainstorm-pill" data-prompt="Domain name must start with the word 'Gravity', e.g. GravityX, GravityAI, GravityHQ.">Starts with Gravity</button>
-                <button class="pill brainstorm-pill" data-prompt="Use a single punchy word that sounds like a tech startup — short, bold, brandable.">One-word tech startup</button>
-                <button class="pill brainstorm-pill" data-prompt="Combine two unrelated words to create a unique, catchy brand name like Snapchat or Dropbox.">Compound word fusion</button>
-                <button class="pill brainstorm-pill" data-prompt="Domain name should sound futuristic and AI-related, under 10 characters.">Futuristic AI name</button>
-                <button class="pill brainstorm-pill" data-prompt="Use nature-inspired words like elements, animals, or landscapes to create a calming, memorable brand.">Nature-inspired brand</button>
-                <button class="pill brainstorm-pill" data-prompt="Generate names with a 'Verb + Noun' pattern, like Shopify or Taskly — action-oriented and energetic.">Verb + Noun pattern</button>
-                <button class="pill brainstorm-pill" data-prompt="Use made-up or misspelled words that are still easy to pronounce — like Fiverr or Tumblr.">Intentional misspelling</button>
-                <button class="pill brainstorm-pill" data-prompt="Domain name should evoke speed, productivity, or getting things done — like Swiftly or Dashly.">Speed / productivity vibe</button>
-                <button class="pill brainstorm-pill" data-prompt="Create a brandable name using a short prefix such as 'Get', 'My', 'Try', or 'Use' followed by the keyword.">Prefix: Get, My, Try…</button>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label>Batch Size</label>
-                <input type="number" id="batchSize" value="15" min="5" max="50">
-              </div>
-              <div class="form-group flex-1">
-                <label>Target Found</label>
-                <input type="number" id="targetCount" value="5" min="1" max="50">
-              </div>
-            </div>
-            <button id="startAiBtn" class="btn btn-primary full-width mt-16">🚀 Start AI Hunt</button>
-            <button id="stopAiBtn" class="btn btn-danger full-width mt-16" style="display:none">⏹ Stop Hunting</button>
+          <div id="logList" class="log-list">
+            <div class="log-empty">Results will stream here as domains are checked</div>
           </div>
         </div>
       </div>
-
-      <!-- Manual Tab -->
-      <div id="manual-tab" class="tab">
-
-        <!-- Not logged in gate -->
-        <div id="manualGate" class="plan-banner hidden">
-          <div>
-            <strong>Sign in required</strong>
-            <p>Sign up free to unlock more manual domain checks!</p>
-          </div>
-          <button class="btn btn-primary btn-sm" id="signupFromManualBtn">Sign Up Free</button>
-        </div>
-
-        <div class="card">
-          <div class="card-body">
-            <div class="form-group">
-              <label>Domains to Check <span class="opt-badge" id="manualCountBadge">1 remaining</span></label>
-              <textarea id="manualDomains" rows="10" placeholder="apple&#10;google&#10;shinynest&#10;swiftleaf&#10;&#10;One per line, no .com needed"></textarea>
-            </div>
-            <button id="startManualBtn" class="btn btn-primary full-width">Check Domains</button>
-            <button id="stopManualBtn" class="btn btn-danger full-width" style="display:none">Stop Checking</button>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- RIGHT: Results Panel -->
-    <section class="results-panel">
-
-      <!-- Status Card -->
-      <div class="card status-card">
-        <div class="status-row">
-          <div>
-            <div class="status-label">Status</div>
-            <div id="statusText" class="status-value idle">Idle</div>
-          </div>
-          <div class="text-right">
-            <div class="status-label">Available Found</div>
-            <div class="status-value"><span id="foundCount">0</span> / <span id="targetDisplay">5</span></div>
-          </div>
-        </div>
-        <div id="foundChips" class="found-chips">
-          <div class="chips-empty">Available domains will appear here as green chips</div>
-        </div>
-      </div>
-
-      <!-- Activity Log -->
-      <div class="card log-card">
-        <div class="log-header">
-          <h3>Live Activity</h3>
-          <div class="log-controls">
-            <select id="logFilter" class="select-minimal">
-              <option value="all">All</option>
-              <option value="available">✅ Available</option>
-              <option value="taken">❌ Taken</option>
-            </select>
-            <button id="downloadLogBtn" class="btn btn-ghost btn-sm">Export</button>
-          </div>
-        </div>
-        <div id="logList" class="log-list">
-          <div class="log-empty">Results will stream here as domains are checked</div>
-        </div>
-      </div>
-
-    </section>
-  </main>
-
+    </div>
+  </main>        
   <!-- Pricing Section -->
   <section class="pricing-section" id="pricing">
     <div class="pricing-header">
@@ -324,20 +344,7 @@
       </div>
     </div>
 
-    <!-- Enterprise Row -->
-    <div class="enterprise-row">
-      <div class="enterprise-card">
-        <div class="enterprise-info">
-          <strong>🏢 Enterprise</strong>
-          <span>Unlimited everything. Custom SLA. Onboarding support. For teams & organizations.</span>
-        </div>
-        <div class="enterprise-cta">
-          <a href="https://t.me/sayedjohon" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">💬 t.me/sayedjohon</a>
-          <a href="mailto:contact.sayedjohon@gmail.com" class="btn btn-ghost btn-sm">✉️ Email Us</a>
-        </div>
-      </div>
     </div>
-
   </section>
 
   <!-- Footer -->
@@ -469,6 +476,20 @@
 
       <!-- History Pane -->
       <div id="paneAdminHistory" class="admin-pane hidden">
+        <div class="admin-filter-bar" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+          <input type="text" id="adminHistorySearch" class="form-input" placeholder="Search email or TX hash..." style="flex: 1; min-width: 200px; padding: 6px 12px; font-size: 13px;">
+          <select id="adminHistoryRange" class="form-select" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="loadAdminOrders('history')">
+            <option value="24h">Last 24 Hrs</option>
+            <option value="3d">3 Days</option>
+            <option value="7d">7 Days</option>
+            <option value="30d">30 Days</option>
+            <option value="90d">90 Days</option>
+            <option value="1y">1 Year</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+          <input type="date" id="adminHistoryDate" class="form-input" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="document.getElementById('adminHistoryRange').value='lifetime'; loadAdminOrders('history');">
+          <button class="btn btn-primary btn-sm" onclick="loadAdminOrders('history')">Search</button>
+        </div>
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
@@ -544,6 +565,20 @@
 
       <!-- Users Pane -->
       <div id="paneAdminUsers" class="admin-pane hidden">
+        <div class="admin-filter-bar" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+          <input type="text" id="adminUsersSearch" class="form-input" placeholder="Search by email..." style="flex: 1; min-width: 200px; padding: 6px 12px; font-size: 13px;">
+          <select id="adminUsersRange" class="form-select" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="loadAdminUsers()">
+            <option value="24h">Last 24 Hrs</option>
+            <option value="3d">3 Days</option>
+            <option value="7d">7 Days</option>
+            <option value="30d">30 Days</option>
+            <option value="90d">90 Days</option>
+            <option value="1y">1 Year</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+          <input type="date" id="adminUsersDate" class="form-input" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="document.getElementById('adminUsersRange').value='lifetime'; loadAdminUsers();">
+          <button class="btn btn-primary btn-sm" onclick="loadAdminUsers()">Search</button>
+        </div>
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
@@ -613,6 +648,28 @@
       <div style="display:flex; gap: 12px; justify-content: center;">
         <button id="confirmModalCancel" class="btn btn-ghost" onclick="resolveConfirm(false)">Cancel</button>
         <button id="confirmModalOk" class="btn btn-primary" onclick="resolveConfirm(true)">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY DOMAINS MODAL -->
+  <div id="myDomainsModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 600px; width: 95vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 style="font-size: 20px; font-weight: 600; display:flex; align-items:center; gap:8px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          Saved Domains
+        </h2>
+        <button class="btn btn-ghost btn-sm" onclick="closeMyDomainsModal()">Close</button>
+      </div>
+      <div id="myDomainsLoading" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading your domains...</div>
+      <div id="myDomainsEmpty" class="hidden" style="text-align: center; padding: 40px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 16px;">
+        <div style="font-size:32px; margin-bottom:12px;">🔍</div>
+        <h3 style="font-weight:600; margin-bottom:8px;">No domains saved yet</h3>
+        <p style="color:var(--text-muted); font-size:14px;">Start an AI Hunt to find and save domains automatically.</p>
+      </div>
+      <div id="myDomainsList" class="hidden" style="display:flex; flex-direction:column; gap:12px; max-height: 50vh; overflow-y:auto; padding-right:8px;">
+        <!-- Domains will be populated here -->
       </div>
     </div>
   </div>
