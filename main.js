@@ -1453,7 +1453,7 @@ async function renderPricingGrid() {
       
       if (isFree) {
         btnLabel = 'Sign Up Free';
-        btnAction = `onclick="$('openSignupBtn').click()"`;
+        btnAction = `onclick="document.getElementById('openSignupBtn').click()"`;
       } else if (isEnterprise) {
         btnLabel = 'Contact Sales';
         btnAction = `onclick="window.location.href='mailto:contact.sayedjohon@gmail.com'"`;
