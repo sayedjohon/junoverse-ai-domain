@@ -24,6 +24,7 @@ let totalCheckedGlobal = 0;
 let totalFoundGlobal   = 0;
 let currentPlanOrder = { plan: '', price: 0, period: '' }; // for payment modal
 let currentUserRole  = 'user'; // admin state
+let cachedMyDomains  = []; // for local searching
 
 const $ = id => document.getElementById(id);
 
@@ -237,8 +238,6 @@ function updateQuotaDisplay() {
     $('headerAiQuota').textContent   = `0 AI search`;
     $('headerManualQuota').textContent = `Max 1 manual`;
     $('manualCountBadge').textContent  = `Guest: 1 check max`;
-    $('guestNotice').querySelector('strong').textContent = 'Daily Free AI searches inside!';
-    $('guestNotice').querySelector('p').textContent = 'Sign up for free to unlock your 3 daily AI Hunts and check more domains at once.';
     return;
   }
   const rem  = getRemaining(currentProfile);
@@ -589,6 +588,48 @@ async function startManualCheck() {
 }
 
 // ============================================
+// Reset Session
+// ============================================
+function resetSession() {
+  // Clear inputs
+  $('keywords').value = '';
+  $('manualDomains').value = '';
+  saveSettings();
+  
+  // Clear session state
+  foundDomains = [];
+  checkedDomains = [];
+  sessionLogs = [];
+  totalCheckedGlobal = 0;
+  totalFoundGlobal = 0;
+  isRunning = false;
+
+  // Reset UI stats
+  if ($('totalChecked')) $('totalChecked').textContent = '0';
+  if ($('totalFound')) $('totalFound').textContent = '0';
+  if ($('foundCount')) $('foundCount').textContent = '0';
+  
+  // Clear lists
+  if ($('foundChips')) $('foundChips').innerHTML = '<div class="chips-empty">Available domains will appear here as green chips</div>';
+  if ($('logList')) $('logList').innerHTML = '<div class="log-empty">Results will stream here as domains are checked</div>';
+  updateStatus('Idle', 'idle');
+
+  // Hide results section
+  const resultsSection = document.querySelector('.app-results-section');
+  if (resultsSection) resultsSection.classList.add('hidden');
+  const heroStats = $('heroStats');
+  if (heroStats) heroStats.classList.add('hidden');
+
+  // Resume typewriter if not focused
+  clearTimeout(typingTimeout);
+  if ($('keywords') && document.activeElement !== $('keywords')) {
+    typePlaceholder();
+  }
+
+  setRunning(false);
+}
+
+// ============================================
 // Coupon
 // ============================================
 async function applyCoupon() {
@@ -730,6 +771,25 @@ function bindEvents() {
   const liveStopBtn = $('liveStopBtn');
   if (liveStopBtn) {
     liveStopBtn.addEventListener('click', () => { isRunning = false; setRunning(false); updateStatus('Stopped', 'idle'); });
+  }
+
+  // Reset Session
+  document.querySelectorAll('.reset-session-btn').forEach(btn => {
+    btn.addEventListener('click', resetSession);
+  });
+
+  // History Search
+  const searchInput = $('myDomainsSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      if (!query) {
+        renderMyDomainsList(cachedMyDomains);
+      } else {
+        const filtered = cachedMyDomains.filter(d => d.domain.toLowerCase().includes(query));
+        renderMyDomainsList(filtered);
+      }
+    });
   }
 
   // Brainstorm idea pills — inject prompt into textarea on click
@@ -1151,6 +1211,14 @@ async function loadAdminUsers() {
         .map(p => `<option value="${p}" ${p === plan ? 'selected' : ''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`)
         .join('');
 
+      const durOpts = `
+        <option value="1 year">1 yr</option>
+        <option value="2 days">2 days</option>
+        <option value="1 month">1 mo</option>
+        <option value="6 months">6 mos</option>
+        <option value="2 years">2 yrs</option>
+      `;
+
       const unlimitedBtn = (currentUserRole === 'super_admin' && plan !== 'enterprise')
         ? `<button class="btn btn-ghost btn-sm" style="color:#a855f7;" onclick="grantUnlimited('${u.id}')">♾️</button>`
         : '';
@@ -1165,8 +1233,9 @@ async function loadAdminUsers() {
         <td style="font-size:12px;">${expires}</td>
         <td style="font-size:12px;">${u.ai_sessions_month || 0}</td>
         <td>
-          <div class="admin-actions">
-            <select id="planSel_${u.id}" class="form-select" style="font-size:12px;height:30px;padding:0 8px;">${opts}</select>
+          <div class="admin-actions" style="display:flex;gap:4px;align-items:center;">
+            <select id="planSel_${u.id}" class="form-select" style="font-size:12px;height:30px;padding:0 8px;width:80px;">${opts}</select>
+            <select id="durSel_${u.id}" class="form-select" style="font-size:12px;height:30px;padding:0 8px;width:70px;">${durOpts}</select>
             <button class="btn btn-primary btn-sm" onclick="setUserPlan('${u.id}')">Apply</button>
             ${unlimitedBtn}
           </div>
@@ -1185,10 +1254,11 @@ window.loadAdminUsers = loadAdminUsers;
 
 async function setUserPlan(userId) {
   const newPlan = $(`planSel_${userId}`).value;
-  const ok = await showConfirm({ title: `Set plan to "${newPlan}"?`, message: 'The user will be notified immediately.', icon: '📋', okText: 'Apply Plan', okClass: 'btn-primary' });
+  const dur = $(`durSel_${userId}`).value;
+  const ok = await showConfirm({ title: `Set plan to "${newPlan}" for ${dur}?`, message: 'The user will be notified immediately.', icon: '📋', okText: 'Apply Plan', okClass: 'btn-primary' });
   if (!ok) return;
   try {
-    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: newPlan });
+    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: newPlan, p_duration: dur });
     if (error) throw error;
     loadAdminUsers();
   } catch (err) {
@@ -1201,7 +1271,7 @@ async function grantUnlimited(userId) {
   const ok = await showConfirm({ title: 'Grant Unlimited Plan?', message: 'Sets user to Enterprise (Unlimited) with no expiry. Super Admin only.', icon: '♾️', okText: 'Grant Unlimited', okClass: 'btn-primary' });
   if (!ok) return;
   try {
-    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: 'enterprise' });
+    const { error } = await supabase.rpc('admin_set_user_plan', { p_target_user_id: userId, p_plan: 'enterprise', p_duration: '100 years' });
     if (error) throw error;
     loadAdminUsers();
   } catch (err) {
@@ -1484,8 +1554,6 @@ async function savePlan(key) {
 window.savePlan = savePlan;
 
 // ============================================
-// My Saved Domains
-// ============================================
 async function saveDomainToDB(domain, prompt) {
   if (!currentSession || !currentProfile) return;
   try {
@@ -1498,11 +1566,52 @@ async function saveDomainToDB(domain, prompt) {
   }
 }
 
+function renderMyDomainsList(data) {
+  if (!data || data.length === 0) {
+    $('myDomainsList').classList.add('hidden');
+    // We only show the empty state if there's no data at all OR if search found nothing
+    if (cachedMyDomains.length === 0) {
+      $('myDomainsEmpty').classList.remove('hidden');
+      $('myDomainsEmpty').querySelector('h3').textContent = 'No domains saved yet';
+      $('myDomainsEmpty').querySelector('p').textContent = 'Start an AI Hunt to find and save domains automatically.';
+    } else {
+      $('myDomainsEmpty').classList.remove('hidden');
+      $('myDomainsEmpty').querySelector('h3').textContent = 'No matches found';
+      $('myDomainsEmpty').querySelector('p').textContent = 'Try adjusting your search query.';
+    }
+  } else {
+    $('myDomainsEmpty').classList.add('hidden');
+    $('myDomainsList').classList.remove('hidden');
+    
+    const listHtml = data.map(item => {
+      const dateObj = new Date(item.created_at);
+      const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; font-size:16px; color:var(--success); margin-bottom:4px;">${item.domain}.com</div>
+            <div style="font-size:12px; color:var(--text-muted);">
+              <strong>Prompt:</strong> ${item.prompt || 'Manual Search'}<br>
+              <span style="font-size:11px; opacity:0.7;">Found on ${dateStr}</span>
+            </div>
+          </div>
+          <a href="https://namecheap.pxf.io/c/5221370/386170/5618?target=search&domain=${item.domain}.com" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0;">Register</a>
+        </div>
+      `;
+    }).join('');
+    
+    $('myDomainsList').innerHTML = listHtml;
+  }
+}
+
 async function openMyDomainsModal() {
   $('myDomainsModal').classList.remove('hidden');
   $('myDomainsLoading').classList.remove('hidden');
   $('myDomainsEmpty').classList.add('hidden');
   $('myDomainsList').classList.add('hidden');
+  if ($('myDomainsSearchContainer')) $('myDomainsSearchContainer').classList.add('hidden');
+  if ($('myDomainsSearch')) $('myDomainsSearch').value = '';
   $('myDomainsList').innerHTML = '';
 
   if (!currentSession) {
@@ -1525,31 +1634,14 @@ async function openMyDomainsModal() {
     $('myDomainsLoading').classList.add('hidden');
 
     if (!data || data.length === 0) {
+      cachedMyDomains = [];
       $('myDomainsEmpty').classList.remove('hidden');
       $('myDomainsEmpty').querySelector('h3').textContent = 'No domains saved yet';
       $('myDomainsEmpty').querySelector('p').textContent = 'Start an AI Hunt to find and save domains automatically.';
     } else {
-      $('myDomainsList').classList.remove('hidden');
-      
-      const listHtml = data.map(item => {
-        const dateObj = new Date(item.created_at);
-        const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        return `
-          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-weight:700; font-size:16px; color:var(--success); margin-bottom:4px;">${item.domain}.com</div>
-              <div style="font-size:12px; color:var(--text-muted);">
-                <strong>Prompt:</strong> ${item.prompt || 'Manual Search'}<br>
-                <span style="font-size:11px; opacity:0.7;">Found on ${dateStr}</span>
-              </div>
-            </div>
-            <a href="https://namecheap.pxf.io/c/5221370/386170/5618?target=search&domain=${item.domain}.com" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0;">Register</a>
-          </div>
-        `;
-      }).join('');
-      
-      $('myDomainsList').innerHTML = listHtml;
+      cachedMyDomains = data;
+      if ($('myDomainsSearchContainer')) $('myDomainsSearchContainer').classList.remove('hidden');
+      renderMyDomainsList(cachedMyDomains);
     }
 
   } catch (err) {

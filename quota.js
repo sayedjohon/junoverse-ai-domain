@@ -10,8 +10,8 @@ export const PLANS = {
     manual_per_month: Infinity,   manual_max: 1,
   },
   free: {
-    label: 'Free',         monthly: false,
-    ai_per_month: 3,       ai_max: 15,     target_max: 5,
+    label: 'Free',         monthly: true,
+    ai_per_month: 3,       ai_max: 15,     target_max: 90,
     manual_per_month: Infinity,  manual_max: 3,
   },
   starter: {
