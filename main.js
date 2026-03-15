@@ -1456,7 +1456,7 @@ async function renderPricingGrid() {
         btnAction = `onclick="$('openSignupBtn').click()"`;
       } else if (isEnterprise) {
         btnLabel = 'Contact Sales';
-        btnAction = `onclick="window.location.href='mailto:sales@junoverse.ai'"`;
+        btnAction = `onclick="window.location.href='mailto:contact.sayedjohon@gmail.com'"`;
       }
 
       const featureItems = (p.features || []).map(f => {

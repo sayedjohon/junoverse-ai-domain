@@ -1389,11 +1389,15 @@ body:has(.modal-overlay:not(.hidden)) {
    MOBILE
    ============================================ */
 @media (max-width: 600px) {
-  .header-inner { padding: 12px 16px; }
+  .header-inner { padding: 12px 16px; gap: 8px; }
   .logo-sub { display: none; }
   .user-email { display: none; }
-  .user-quota-badge { font-size: 12px; padding: 3px 10px; }
+  .user-quota-badge { font-size: 11px; padding: 3px 6px; }
 
+  .header-actions { flex-wrap: nowrap; gap: 6px; }
+  .auth-actions { gap: 4px; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  
   .hero { padding: 48px 16px 40px; }
   .hero-headline { font-size: 32px; }
   .hero-sub { font-size: 15px; }
