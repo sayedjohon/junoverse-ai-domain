@@ -1,5 +1,5 @@
 import './style.css';
-import { signUp, signIn, signOut, getSession, onAuthStateChange } from './auth.js';
+import { signUp, signIn, signOut, getSession, onAuthStateChange, resetPassword } from './auth.js';
 import {
   PLANS,
   getProfile, getEffectivePlan, getRemaining,
@@ -695,6 +695,25 @@ async function handleSignIn() {
   finally { btn.disabled = false; btn.textContent = 'Sign In'; }
 }
 
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const email = $('signinEmail').value.trim();
+  const msg = $('signinMsg');
+  if (!email) {
+    msg.textContent = 'Please enter your email address above first.';
+    msg.className = 'form-msg error';
+    return;
+  }
+  try {
+    await resetPassword(email);
+    msg.textContent = '✅ Password reset email sent! Check your inbox.';
+    msg.className = 'form-msg success';
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'form-msg error';
+  }
+}
+
 async function handleSignUp() {
   const btn = $('signupBtn'), msg = $('signupMsg');
   msg.className = 'form-msg hidden';
@@ -745,6 +764,7 @@ function bindEvents() {
   $('openSigninBtn').addEventListener('click', () => openModal('signin'));
   $('openSignupBtn').addEventListener('click', () => openModal('signup'));
   $('signupFromNoticeBtn').addEventListener('click', () => openModal('signup'));
+  $('forgotPasswordLink').addEventListener('click', handleForgotPassword);
   $('signupFromManualBtn').addEventListener('click', () => openModal('signup'));
 
   const pricingBtn = $('pricingSignupBtn');

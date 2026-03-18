@@ -51,6 +51,13 @@
           <label for="signinPassword">Password</label>
           <input type="password" id="signinPassword" placeholder="Your password" autocomplete="current-password">
         </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; font-size:13px;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
+            <input type="checkbox" id="rememberMeChk" style="width:14px; height:14px; accent-color:var(--accent); cursor:pointer;">
+            Remember me
+          </label>
+          <a href="#" id="forgotPasswordLink" style="color:var(--accent); text-decoration:none; font-weight:500;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Forgot password?</a>
+        </div>
         <button id="signinBtn" class="btn btn-primary full-width">Sign In</button>
         <p id="signinMsg" class="form-msg hidden"></p>
       </div>
