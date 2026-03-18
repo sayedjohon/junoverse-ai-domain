@@ -1413,7 +1413,9 @@ body:has(.modal-overlay:not(.hidden)) {
 
   .enterprise-card { flex-direction: column; align-items: flex-start; }
 
-  .footer-inner { flex-direction: column; align-items: flex-start; }
+  .footer-inner { flex-direction: column; align-items: center; }
+  .dev-card { flex-direction: column; align-items: center; text-align: center; }
+  .footer-links { width: 100%; justify-content: space-between; }
 }
 
 /* ============================================
