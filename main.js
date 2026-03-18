@@ -695,22 +695,43 @@ async function handleSignIn() {
   finally { btn.disabled = false; btn.textContent = 'Sign In'; }
 }
 
-async function handleForgotPassword(e) {
-  e.preventDefault();
-  const email = $('signinEmail').value.trim();
-  const msg = $('signinMsg');
+function openForgotPwModal(e) {
+  if (e) e.preventDefault();
+  // Pre-fill with whatever the user typed in the sign-in email box
+  const prefill = $('signinEmail').value.trim();
+  $('forgotPwEmail').value = prefill;
+  $('forgotPwMsg').className = 'form-msg hidden';
+  $('forgotPwMsg').textContent = '';
+  $('forgotPwBtn').disabled = false;
+  $('forgotPwBtn').textContent = 'Send Reset Email';
+  $('forgotPwOverlay').classList.remove('hidden');
+}
+
+function closeForgotPwModal() {
+  $('forgotPwOverlay').classList.add('hidden');
+}
+
+async function handleSendResetEmail() {
+  const btn = $('forgotPwBtn'), msg = $('forgotPwMsg');
+  const email = $('forgotPwEmail').value.trim();
   if (!email) {
-    msg.textContent = 'Please enter your email address above first.';
+    msg.textContent = 'Please enter your email address.';
     msg.className = 'form-msg error';
     return;
   }
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  msg.className = 'form-msg hidden';
   try {
     await resetPassword(email);
-    msg.textContent = '✅ Password reset email sent! Check your inbox.';
+    msg.textContent = '✅ Reset link sent! Check your inbox.';
     msg.className = 'form-msg success';
+    btn.textContent = 'Email Sent';
   } catch (err) {
     msg.textContent = err.message;
     msg.className = 'form-msg error';
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Email';
   }
 }
 
@@ -764,7 +785,11 @@ function bindEvents() {
   $('openSigninBtn').addEventListener('click', () => openModal('signin'));
   $('openSignupBtn').addEventListener('click', () => openModal('signup'));
   $('signupFromNoticeBtn').addEventListener('click', () => openModal('signup'));
-  $('forgotPasswordLink').addEventListener('click', handleForgotPassword);
+  $('forgotPasswordLink').addEventListener('click', openForgotPwModal);
+  // Forgot Password modal
+  $('closeForgotPwBtn').addEventListener('click', closeForgotPwModal);
+  $('forgotPwOverlay').addEventListener('click', e => { if (e.target === $('forgotPwOverlay')) closeForgotPwModal(); });
+  $('forgotPwBtn').addEventListener('click', handleSendResetEmail);
   $('signupFromManualBtn').addEventListener('click', () => openModal('signup'));
 
   const pricingBtn = $('pricingSignupBtn');
