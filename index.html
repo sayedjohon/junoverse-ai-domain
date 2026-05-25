@@ -706,8 +706,12 @@
         </h2>
         <button class="btn btn-ghost btn-sm" onclick="closeMyDomainsModal()">Close</button>
       </div>
-      <div id="myDomainsSearchContainer" class="hidden" style="margin-bottom: 16px;">
-        <input type="text" id="myDomainsSearch" class="form-input full-width" placeholder="Search saved domains... (e.g. pro)" autocomplete="off">
+      <div id="myDomainsSearchContainer" class="hidden" style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" id="myDomainsSearch" class="form-input" style="flex: 1; min-width: 200px;" placeholder="Search saved domains... (e.g. pro)" autocomplete="off">
+        <select id="myDomainsCategoryFilter" style="width: auto; padding: 11px 13px; font-size: 13px; border-radius: 10px;">
+          <option value="all">All Categories</option>
+          <option value="Uncategorized">Uncategorized</option>
+        </select>
       </div>
       <div id="myDomainsLoading" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading your domains...</div>
       <div id="myDomainsEmpty" class="hidden" style="text-align: center; padding: 40px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 16px;">

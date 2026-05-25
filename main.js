@@ -236,8 +236,8 @@ function updateQuotaDisplay() {
   if (!currentSession || !currentProfile) {
     const { ai, manual } = getGuestUsage();
     $('headerAiQuota').textContent   = `0 AI search`;
-    $('headerManualQuota').textContent = `Max 1 manual`;
-    $('manualCountBadge').textContent  = `Guest: 1 check max`;
+    $('headerManualQuota').textContent = `Max 3 manual`;
+    $('manualCountBadge').textContent  = `Guest: 3 checks max`;
     return;
   }
   const rem  = getRemaining(currentProfile);
@@ -823,18 +823,14 @@ function bindEvents() {
     btn.addEventListener('click', resetSession);
   });
 
-  // History Search
+  // History Search & Category Filtering
   const searchInput = $('myDomainsSearch');
   if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.trim().toLowerCase();
-      if (!query) {
-        renderMyDomainsList(cachedMyDomains);
-      } else {
-        const filtered = cachedMyDomains.filter(d => d.domain.toLowerCase().includes(query));
-        renderMyDomainsList(filtered);
-      }
-    });
+    searchInput.addEventListener('input', filterAndRenderMyDomains);
+  }
+  const categoryFilter = $('myDomainsCategoryFilter');
+  if (categoryFilter) {
+    categoryFilter.addEventListener('change', filterAndRenderMyDomains);
   }
 
   // Brainstorm idea pills — inject prompt into textarea on click
@@ -1628,26 +1624,155 @@ function renderMyDomainsList(data) {
     $('myDomainsEmpty').classList.add('hidden');
     $('myDomainsList').classList.remove('hidden');
     
+    // Extract unique categories from cache (fallback to Uncategorized)
+    const categories = [...new Set(cachedMyDomains.map(d => d.category || 'Uncategorized'))];
+    if (!categories.includes('Uncategorized')) categories.push('Uncategorized');
+
     const listHtml = data.map(item => {
       const dateObj = new Date(item.created_at);
       const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
+      const currentCategory = item.category || 'Uncategorized';
+      const selectOptions = categories.map(cat => {
+        const selected = currentCategory === cat ? 'selected' : '';
+        return `<option value="${cat}" ${selected}>${cat}</option>`;
+      }).join('');
+
       return `
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-weight:700; font-size:16px; color:var(--success); margin-bottom:4px;">${item.domain}.com</div>
-            <div style="font-size:12px; color:var(--text-muted);">
-              <strong>Prompt:</strong> ${item.prompt || 'Manual Search'}<br>
-              <span style="font-size:11px; opacity:0.7;">Found on ${dateStr}</span>
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 12px; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 8px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+                <span style="font-weight:700; font-size:16px; color:var(--success);">${item.domain}.com</span>
+                <span class="opt-badge" style="background:rgba(52,199,89,0.1); color:var(--success); text-transform:none; border: 1px solid rgba(52,199,89,0.2);">${currentCategory}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                <strong>Prompt:</strong> ${item.prompt || 'Manual Search'}<br>
+                <span style="font-size:11px; opacity:0.7;">Found on ${dateStr}</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; align-items: center; flex-shrink: 0;">
+              <a href="https://namecheap.pxf.io/c/5221370/386170/5618?target=search&domain=${item.domain}.com" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Register</a>
+              <button class="btn btn-ghost btn-sm delete-saved-domain-btn" data-id="${item.id}" style="color:var(--danger); border:1px solid rgba(255,59,48,0.2); padding: 7px 12px;">Delete</button>
             </div>
           </div>
-          <a href="https://namecheap.pxf.io/c/5221370/386170/5618?target=search&domain=${item.domain}.com" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0;">Register</a>
+          <div style="display:flex; align-items:center; gap:8px; border-top: 1px solid rgba(255,255,255,0.03); padding-top:8px;">
+            <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Category:</span>
+            <select class="category-select" data-id="${item.id}" style="width:auto; padding:4px 8px; font-size:12px; border-radius:6px; background:var(--seg-bg); border:1px solid var(--border);">
+              ${selectOptions}
+              <option value="__new__">+ Create New Category...</option>
+            </select>
+          </div>
         </div>
       `;
     }).join('');
     
     $('myDomainsList').innerHTML = listHtml;
+
+    // Bind Delete events
+    $('myDomainsList').querySelectorAll('.delete-saved-domain-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        deleteSavedDomain(id);
+      });
+    });
+
+    // Bind Category change events
+    $('myDomainsList').querySelectorAll('.category-select').forEach(select => {
+      select.dataset.prev = select.value;
+      select.addEventListener('change', () => {
+        const domainId = select.dataset.id;
+        const val = select.value;
+        if (val === '__new__') {
+          const newCat = prompt("Enter name for the new category:");
+          if (newCat && newCat.trim()) {
+            const trimmed = newCat.trim();
+            updateDomainCategory(domainId, trimmed);
+          } else {
+            select.value = select.dataset.prev || 'Uncategorized';
+          }
+        } else {
+          updateDomainCategory(domainId, val);
+        }
+      });
+    });
   }
+}
+
+async function deleteSavedDomain(id) {
+  if (!confirm("Are you sure you want to delete this saved domain?")) return;
+  try {
+    const { error } = await supabase
+      .from('saved_domains')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    // Update cache
+    cachedMyDomains = cachedMyDomains.filter(d => d.id !== id);
+    
+    // Refresh filter and view
+    updateCategoryFilterDropdown();
+    filterAndRenderMyDomains();
+  } catch (err) {
+    alert("Failed to delete saved domain: " + err.message);
+  }
+}
+
+async function updateDomainCategory(id, newCategory) {
+  try {
+    const { error } = await supabase
+      .from('saved_domains')
+      .update({ category: newCategory })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    // Update cache
+    cachedMyDomains = cachedMyDomains.map(d => d.id === id ? { ...d, category: newCategory } : d);
+
+    // Refresh filter and view
+    updateCategoryFilterDropdown();
+    filterAndRenderMyDomains();
+  } catch (err) {
+    alert("Failed to update category: " + err.message);
+  }
+}
+
+function updateCategoryFilterDropdown() {
+  const filter = $('myDomainsCategoryFilter');
+  if (!filter) return;
+  
+  const currentVal = filter.value;
+  const categories = [...new Set(cachedMyDomains.map(d => d.category || 'Uncategorized'))];
+  if (!categories.includes('Uncategorized')) categories.push('Uncategorized');
+  
+  filter.innerHTML = `<option value="all">All Categories</option>` + 
+    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+    
+  if (categories.includes(currentVal) || currentVal === 'all') {
+    filter.value = currentVal;
+  } else {
+    filter.value = 'all';
+  }
+}
+
+function filterAndRenderMyDomains() {
+  const query = $('myDomainsSearch').value.trim().toLowerCase();
+  const catFilter = $('myDomainsCategoryFilter').value;
+  
+  let filtered = cachedMyDomains;
+  
+  if (catFilter !== 'all') {
+    filtered = filtered.filter(d => (d.category || 'Uncategorized') === catFilter);
+  }
+  
+  if (query) {
+    filtered = filtered.filter(d => d.domain.toLowerCase().includes(query) || (d.prompt && d.prompt.toLowerCase().includes(query)));
+  }
+  
+  renderMyDomainsList(filtered);
 }
 
 async function openMyDomainsModal() {
@@ -1655,8 +1780,9 @@ async function openMyDomainsModal() {
   $('myDomainsLoading').classList.remove('hidden');
   $('myDomainsEmpty').classList.add('hidden');
   $('myDomainsList').classList.add('hidden');
-  if ($('myDomainsSearchContainer')) $('myDomainsSearchContainer').classList.add('hidden');
+  if ($('myDomainsSearchContainer')) $('myDomainsSearchContainer').classList.remove('hidden');
   if ($('myDomainsSearch')) $('myDomainsSearch').value = '';
+  if ($('myDomainsCategoryFilter')) $('myDomainsCategoryFilter').value = 'all';
   $('myDomainsList').innerHTML = '';
 
   if (!currentSession) {
@@ -1686,6 +1812,7 @@ async function openMyDomainsModal() {
     } else {
       cachedMyDomains = data;
       if ($('myDomainsSearchContainer')) $('myDomainsSearchContainer').classList.remove('hidden');
+      updateCategoryFilterDropdown();
       renderMyDomainsList(cachedMyDomains);
     }
 

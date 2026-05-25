@@ -16,11 +16,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const NVIDIA_API_KEY = Deno.env.get('NVIDIA_API_KEY');
     const SUPABASE_URL = Deno.env.get('PROJECT_URL') || Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('PROJECT_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
+    if (!NVIDIA_API_KEY) throw new Error('NVIDIA_API_KEY not configured');
 
     // Parse body
     const body = await req.json();
@@ -29,11 +29,11 @@ Deno.serve(async (req) => {
     if (!keywords) throw new Error('keywords is required');
 
     // Authentication check removed because quota is enforced heavily on the client side
-    // and this edge function merely builds prompts for Gemini.
+    // and this edge function merely builds prompts for the AI.
 
-    // Build Gemini prompt
+    // Build Nvidia prompt
     const effectiveBatchSize = batchSize || 15;
-    const defaultPrompt = `You are a highly creative AI brand naming expert. Generate ${effectiveBatchSize} HIGH-QUALITY, UNIQUE domain names based on user keywords.\n\nRULES:\n1. Base name ONLY (NO .com, NO extensions).\n2. NO HYPHENS (-), NO NUMBERS. Alphabetical letters only.\n3. Keep it between 6 to 14 letters maximum.\n4. Memorable, brandable, and easy to pronounce.\n5. Be highly creative and unpredictable.\n6. NEVER REPEAT previously generated domains.`;
+    const defaultPrompt = `You are a highly creative AI brand naming expert. Generate ${effectiveBatchSize} HIGH-QUALITY, UNIQUE domain names based on user keywords.\n\nRULES:\n1. Base name ONLY (NO .com, NO extensions).\n2. NO HYPHENS (-), NO NUMBERS. Alphabetical letters only.\n3. Keep it between 6 to 14 letters maximum.\n4. Memorable, brandable, and easy to pronounce.\n5. Be highly creative and unpredictable.\n6. NEVER REPEAT previously generated domains.\n7. Return ONLY a valid JSON array of strings containing the domain names. Do not include markdown code block backticks (e.g. no \`\`\`json). Just the raw JSON. Example: ["domain1", "domain2"]`;
 
     const customPart = promptInstructions ? `\n\nUSER INSTRUCTIONS:\n${promptInstructions}` : '';
     const suffixPart = selectedSuffixes.length > 0
@@ -45,35 +45,67 @@ Deno.serve(async (req) => {
 
     const fullPrompt = `${defaultPrompt}${customPart}${suffixPart}\n\nKeywords: ${keywords}${avoidPart}`;
 
-    // Call Gemini
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: {
-          temperature: 0.95,
-          responseMimeType: 'application/json',
-          responseSchema: { type: 'ARRAY', items: { type: 'STRING' } },
-        },
-      }),
-    });
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`Gemini API error: ${geminiRes.status} - ${errText}`);
-    }
-
-    const geminiData = await geminiRes.json();
-    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error('Empty response from Gemini');
+    const MODELS = [
+      'google/gemma-3n-e2b-it',
+      'google/gemma-3-12b-it',
+      'meta/llama-3.1-8b-instruct',
+      'meta/llama-3.3-70b-instruct',
+      'mistralai/mistral-large-2-instruct'
+    ];
 
     let domains = [];
-    try {
-      domains = JSON.parse(rawText);
-    } catch {
-      domains = rawText.split(/[\n,]+/);
+    let lastError = null;
+
+    for (const model of MODELS) {
+      try {
+        console.log(`Trying NVIDIA model: ${model}...`);
+        const nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
+        const nvidiaRes = await fetch(nvidiaUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${NVIDIA_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'user', content: fullPrompt }
+            ],
+            temperature: 0.20,
+            top_p: 0.70,
+            max_tokens: 512,
+          }),
+        });
+
+        if (!nvidiaRes.ok) {
+          const errText = await nvidiaRes.text();
+          throw new Error(`NVIDIA API error for ${model}: ${nvidiaRes.status} - ${errText}`);
+        }
+
+        const nvidiaData = await nvidiaRes.json();
+        const rawText = nvidiaData?.choices?.[0]?.message?.content;
+        if (!rawText) throw new Error(`Empty response from NVIDIA API model ${model}`);
+
+        // Parse domains
+        try {
+          const cleanText = rawText.replace(/```json|```/g, '').trim();
+          domains = JSON.parse(cleanText);
+        } catch {
+          domains = rawText.split(/[\n,]+/);
+        }
+
+        if (domains && domains.length > 0) {
+          console.log(`Successfully generated domains using model ${model}`);
+          break; // Success! Exit the loop.
+        }
+      } catch (err) {
+        console.warn(`Model ${model} failed: ${err.message}`);
+        lastError = err;
+      }
+    }
+
+    if (domains.length === 0) {
+      throw lastError || new Error('All NVIDIA models failed to generate domains.');
     }
 
     // Sanitize: letters only, trim, lowercase
