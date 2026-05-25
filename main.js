@@ -234,8 +234,8 @@ function updatePlanNotice() {
 
 function updateQuotaDisplay() {
   if (!currentSession || !currentProfile) {
-    const { ai, manual } = getGuestUsage();
-    $('headerAiQuota').textContent   = `0 AI search`;
+    const rem = getRemaining(null);
+    $('headerAiQuota').textContent   = `${rem.ai} AI left`;
     $('headerManualQuota').textContent = `Max 3 manual`;
     $('manualCountBadge').textContent  = `Guest: 3 checks max`;
     return;

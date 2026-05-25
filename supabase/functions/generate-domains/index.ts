@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     // Parse body
     const body = await req.json();
-    const { keywords, batchSize = 15, promptInstructions, selectedSuffixes = [], checkedDomains = [] } = body;
+    const { keywords, batchSize = 30, promptInstructions, selectedSuffixes = [], checkedDomains = [] } = body;
 
     if (!keywords) throw new Error('keywords is required');
 
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     // and this edge function merely builds prompts for the AI.
 
     // Build Nvidia prompt
-    const effectiveBatchSize = batchSize || 15;
+    const effectiveBatchSize = batchSize || 30;
     const defaultPrompt = `You are a highly creative AI brand naming expert. Generate ${effectiveBatchSize} HIGH-QUALITY, UNIQUE domain names based on user keywords.\n\nRULES:\n1. Base name ONLY (NO .com, NO extensions).\n2. NO HYPHENS (-), NO NUMBERS. Alphabetical letters only.\n3. Keep it between 6 to 14 letters maximum.\n4. Memorable, brandable, and easy to pronounce.\n5. Be highly creative and unpredictable.\n6. NEVER REPEAT previously generated domains.\n7. Return ONLY a valid JSON array of strings containing the domain names. Do not include markdown code block backticks (e.g. no \`\`\`json). Just the raw JSON. Example: ["domain1", "domain2"]`;
 
     const customPart = promptInstructions ? `\n\nUSER INSTRUCTIONS:\n${promptInstructions}` : '';

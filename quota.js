@@ -6,12 +6,12 @@ import { supabase } from './lib/supabase.js';
 export const PLANS = {
   guest: {
     label: 'Guest',        monthly: false,
-    ai_per_month: 0,       ai_max: 0,      target_max: 0,
+    ai_per_month: 3,       ai_max: 30,      target_max: 5,
     manual_per_month: Infinity,   manual_max: 3,
   },
   free: {
     label: 'Free',         monthly: true,
-    ai_per_month: 3,       ai_max: 15,     target_max: 90,
+    ai_per_month: 5,       ai_max: 30,     target_max: 90,
     manual_per_month: Infinity,  manual_max: 10,
   },
   starter: {
