@@ -1,0 +1,18 @@
+# AI Domain Search
+
+AI Domain Search is a high-speed, AI-powered domain hunting platform. It helps startup founders, developers, and product creators find available `.com` domains in seconds. The service uses NVIDIA LLM endpoints to generate brandable name ideas and checks their availability in real-time.
+
+## Key Features
+
+- **AI Search Mode:** Describe your project or idea in plain English (e.g., "a calming meditation app with nature themes"), and the AI will automatically brainstorm catchy, brandable domain names and check their real-time availability.
+- **Manual Search Mode:** Paste lists of domain names to perform bulk availability checks instantly.
+- **Saved Domains & Categories:** Save available domains directly to your profile, categorize them (e.g., "SaaS ideas", "Client projects"), filter, search, and export reports.
+- **Free Quota:** Unregistered users get 3 AI searches and manual checks (3 domains at a time). Registered free users get 5 AI searches and manual checks (10 domains at a time) for free.
+- **Fast DNS Verification:** Uses Cloudflare DNS-over-HTTPS (DoH) client-side checks for instant, reliable domain status queries.
+
+## Essential Links
+
+- [Homepage](https://aidomain.junoverseai.com/)
+- [Pricing details](https://aidomain.junoverseai.com/pricing.md)
+- [PeeAI Education Platform](https://peeai.com)
+- [Sayed Johon YouTube Channel](https://youtube.com/@junoverseai)

@@ -1416,6 +1416,7 @@ body:has(.modal-overlay:not(.hidden)) {
   .footer-inner { flex-direction: column; align-items: center; }
   .dev-card { flex-direction: column; align-items: center; text-align: center; }
   .footer-links { width: 100%; justify-content: space-between; }
+  .modal-card { padding: 24px 20px; max-width: calc(100% - 32px); }
 }
 
 /* ============================================
