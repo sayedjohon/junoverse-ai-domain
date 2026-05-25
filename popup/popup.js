@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (filtered.length === 0) return alert('No domains match this filter.');
       
-      let content = "JunoverseAI Domain Report\n";
+      let content = "AI Domain Search Report\n";
       content += "Generated: " + new Date().toLocaleString() + "\n\n";
       
       filtered.forEach(log => {
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const a = document.createElement('a');
       a.href = url;
       const dateStr = new Date().toISOString().slice(0, 16).replace(/T|:/g, '-');
-      a.download = `JunoverseAI-domains-${dateStr}.txt`;
+      a.download = `AIDomainSearch-domains-${dateStr}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     });

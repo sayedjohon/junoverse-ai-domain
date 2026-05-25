@@ -381,11 +381,11 @@ function downloadLog() {
   if (!sessionLogs.length) return alert('No logs to export.');
   const filter = $('logFilter').value;
   const data   = filter === 'all' ? sessionLogs : sessionLogs.filter(l => l.status === filter);
-  let txt = `JunoverseAI Domain Report\nGenerated: ${new Date().toLocaleString()}\n\n`;
+  let txt = `AI Domain Search Report\nGenerated: ${new Date().toLocaleString()}\n\n`;
   data.forEach(l => { txt += `${l.domain}.com — ${l.status.toUpperCase()}\n`; });
   const a = document.createElement('a');
   a.href     = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
-  a.download = `JunoverseAI-${new Date().toISOString().slice(0,16).replace(/T|:/g,'-')}.txt`;
+  a.download = `AIDomainSearch-${new Date().toISOString().slice(0,16).replace(/T|:/g,'-')}.txt`;
   a.click();
 }
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "JunoverseAI Domain Search",
+  "name": "AI Domain Search",
   "version": "1.1",
-  "description": "AI-powered domain hunting by JunoverseAI. Find available domains using Gemini AI or manual check — built by Sayed Johon.",
+  "description": "AI-powered domain hunting. Find available domains using NVIDIA AI or manual check — built by Sayed Johon.",
   "background": {
     "service_worker": "background.js"
   },
@@ -12,7 +12,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "JunoverseAI Domain Search",
+    "default_title": "AI Domain Search",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
