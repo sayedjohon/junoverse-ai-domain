@@ -24,14 +24,20 @@ export async function resetPassword(email) {
   if (error) throw error;
 }
 
+export async function updatePassword(newPassword) {
+  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+  return data;
+}
+
 export async function getSession() {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 }
 
 export function onAuthStateChange(callback) {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    callback(event, session);
   });
   return subscription;
 }

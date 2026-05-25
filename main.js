@@ -1,5 +1,5 @@
 import './style.css';
-import { signUp, signIn, signOut, getSession, onAuthStateChange, resetPassword } from './auth.js';
+import { signUp, signIn, signOut, getSession, onAuthStateChange, resetPassword, updatePassword } from './auth.js';
 import {
   PLANS,
   getProfile, getEffectivePlan, getRemaining,
@@ -122,8 +122,11 @@ async function init() {
     renderGuestUI();
   }
 
-  onAuthStateChange(async (session) => {
+  onAuthStateChange(async (event, session) => {
     currentSession = session;
+    if (event === 'PASSWORD_RECOVERY') {
+      openChangePasswordModal();
+    }
     if (session) {
       await onSessionReady(session);
     } else {
@@ -752,6 +755,47 @@ async function handleSignUp() {
   finally { btn.disabled = false; btn.textContent = 'Create Free Account'; }
 }
 
+function openChangePasswordModal() {
+  $('changePwPassword').value = '';
+  $('changePwMsg').className = 'form-msg hidden';
+  $('changePwMsg').textContent = '';
+  $('changePwBtn').disabled = false;
+  $('changePwBtn').textContent = 'Update Password';
+  $('changePwOverlay').classList.remove('hidden');
+}
+
+function closeChangePasswordModal() {
+  $('changePwOverlay').classList.add('hidden');
+}
+
+async function handleUpdatePassword() {
+  const btn = $('changePwBtn'), msg = $('changePwMsg');
+  const password = $('changePwPassword').value;
+  if (!password || password.length < 6) {
+    msg.textContent = 'Password must be at least 6 characters.';
+    msg.className = 'form-msg error';
+    msg.classList.remove('hidden');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
+  msg.className = 'form-msg hidden';
+  try {
+    await updatePassword(password);
+    msg.textContent = '✅ Password updated successfully!';
+    msg.className = 'form-msg success';
+    msg.classList.remove('hidden');
+    btn.textContent = 'Updated';
+    setTimeout(closeChangePasswordModal, 1500);
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'form-msg error';
+    msg.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+  }
+}
+
 // ============================================
 // Theme
 // ============================================
@@ -796,6 +840,12 @@ function bindEvents() {
   $('forgotPwOverlay').addEventListener('click', e => { if (e.target === $('forgotPwOverlay')) closeForgotPwModal(); });
   $('forgotPwBtn').addEventListener('click', handleSendResetEmail);
   $('signupFromManualBtn').addEventListener('click', () => openModal('signup'));
+
+  // Change password modal bindings
+  $('closeChangePwBtn').addEventListener('click', closeChangePasswordModal);
+  $('changePwOverlay').addEventListener('click', e => { if (e.target === $('changePwOverlay')) closeChangePasswordModal(); });
+  $('changePwBtn').addEventListener('click', handleUpdatePassword);
+  $('changePwPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleUpdatePassword(); });
 
   const pricingBtn = $('pricingSignupBtn');
   if (pricingBtn) pricingBtn.addEventListener('click', () => openModal('signup'));

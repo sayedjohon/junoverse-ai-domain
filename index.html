@@ -169,6 +169,37 @@
     </div>
   </div>
 
+  <!-- Change Password Modal -->
+  <div id="changePwOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="changePwTitle">
+    <div class="modal-card" style="max-width:380px;">
+      <button id="closeChangePwBtn" class="modal-close" aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <div class="modal-logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="url(#lg_cp)"/>
+          <circle cx="16" cy="15" r="7" stroke="white" stroke-width="2.2" fill="none"/>
+          <line x1="21.5" y1="20.5" x2="27" y2="26" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <defs><linearGradient id="lg_cp" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#2997ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+        </svg>
+        <span id="changePwTitle">Set New Password</span>
+      </div>
+
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:20px; line-height:1.6;">
+        Please enter your new password below to update your account.
+      </p>
+
+      <div class="form-group">
+        <label for="changePwPassword">New Password</label>
+        <input type="password" id="changePwPassword" placeholder="Min 6 characters" autocomplete="new-password">
+      </div>
+
+      <button id="changePwBtn" class="btn btn-primary full-width">Update Password</button>
+      <p id="changePwMsg" class="form-msg hidden"></p>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="app-header">
     <div class="header-inner">
