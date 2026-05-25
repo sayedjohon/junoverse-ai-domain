@@ -145,7 +145,12 @@ async function onSessionReady(session) {
   
   currentUserRole = currentProfile ? (currentProfile.role || 'user') : 'user';
   
-  if (session.user.email === 'sayedjohonedu@gmail.com') {
+  const superAdmins = [
+    'sayedjohonedu@gmail.com',
+    'sayedjohon@gmail.com',
+    'contact.sayedjohon@gmail.com'
+  ];
+  if (superAdmins.includes(session.user.email)) {
     currentUserRole = 'super_admin';
   }
   
